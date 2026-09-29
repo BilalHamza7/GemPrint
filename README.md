@@ -2,6 +2,8 @@
 
 GemPrint is a low-cost gemstone provenance support platform. It uses visible microscopic inclusion patterns as optical identity cues for polished, inclusion-bearing rubies and blue sapphires. It supplements—not replaces—professional gemological assessment.
 
+Low-cost gemstone provenance platform using microscopic inclusion fingerprints for tamper-evident sapphire and ruby verification.
+
 ## Services
 
 | Directory | Technology | Deployment |
