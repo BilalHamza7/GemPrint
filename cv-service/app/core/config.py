@@ -1,0 +1,3 @@
+import os
+
+INTERNAL_SERVICE_KEY = os.getenv('CV_INTERNAL_SERVICE_KEY', '')

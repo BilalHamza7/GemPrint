@@ -1,0 +1,11 @@
+node_modules/
+dist/
+vite.config.*.timestamp-*
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+coverage/
+.DS_Store
