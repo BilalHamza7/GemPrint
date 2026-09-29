@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: gemprint-api
+    runtime: node
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+      - key: CV_SERVICE_URL
+        sync: false
+      - key: CV_INTERNAL_SERVICE_KEY
+        sync: false
+
+  - type: web
+    name: gemprint-cv-engine
+    runtime: python
+    region: singapore
+    rootDir: cv-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: CV_INTERNAL_SERVICE_KEY
+        sync: false

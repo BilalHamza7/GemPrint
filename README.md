@@ -21,7 +21,7 @@ The Node API is the only service the browser calls. It owns authentication, auth
 | `gemprint-api` | `backend` | `npm ci && npm run build` | `npm run start` |
 | `gemprint-cv-engine` | `cv-service` | `pip install -r requirements.txt` | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
 
-Initially, use `npm install && npm run build` in Render until `backend/package-lock.json` has been committed. Switch to `npm ci` afterward.
+The Node lockfile is committed, so use `npm ci && npm run build` in Render. The repository's `render.yaml` records the intended service configuration for future reproducible setup.
 
 ## Local development
 
