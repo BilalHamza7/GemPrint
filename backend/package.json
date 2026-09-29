@@ -16,8 +16,7 @@
     "dotenv": "latest",
     "express": "latest",
     "helmet": "latest",
-    "pino-http": "latest",
-    "zod": "latest"
+    "pino-http": "latest"
   },
   "devDependencies": {
     "@types/cors": "latest",

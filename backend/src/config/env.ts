@@ -1,16 +1,12 @@
 import 'dotenv/config'
-import { z } from 'zod'
-
-const schema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(4000),
-  FRONTEND_URL: z.string().url().default('http://localhost:5173'),
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  CV_SERVICE_URL: z.string().url().default('http://localhost:8000'),
-  CV_INTERNAL_SERVICE_KEY: z.string().min(16).default('development-only-change-me'),
-})
-
-export const env = schema.parse(process.env)
+const port = Number(process.env.PORT ?? 4000)
+if (!Number.isInteger(port) || port <= 0) throw new Error('PORT must be a positive integer.')
+export const env = {
+  NODE_ENV: process.env.NODE_ENV ?? 'development', PORT: port,
+  FRONTEND_URL: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  SUPABASE_URL: process.env.SUPABASE_URL, SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  CV_SERVICE_URL: process.env.CV_SERVICE_URL ?? 'http://localhost:8000',
+  CV_INTERNAL_SERVICE_KEY: process.env.CV_INTERNAL_SERVICE_KEY ?? 'development-only-change-me',
+}
 export const supabaseConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.SUPABASE_SERVICE_ROLE_KEY)
