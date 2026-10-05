@@ -35,3 +35,18 @@ export async function getReportImageUrl(request: Request, response: Response) {
     return response.status(400).json({ error: caught instanceof Error ? caught.message : 'Unable to access image.' })
   }
 }
+
+export async function deleteReportImage(request: Request, response: Response) {
+  const id = routeValue(request.params.id)
+  const kind = routeValue(request.params.kind)
+  if (!isMediaKind(kind))
+    return response.status(400).json({ error: 'Image kind must be main or fingerprint reference.' })
+  try {
+    const result = await media.remove(request.user!.id, id, kind)
+    if (!result) return response.status(404).json({ error: 'Report not found.' })
+    if ('missing' in result) return response.status(404).json({ error: 'No image of this type has been uploaded.' })
+    return response.status(204).send()
+  } catch (caught) {
+    return response.status(400).json({ error: caught instanceof Error ? caught.message : 'Unable to delete image.' })
+  }
+}

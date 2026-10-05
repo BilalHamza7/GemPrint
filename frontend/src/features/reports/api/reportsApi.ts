@@ -23,3 +23,14 @@ export async function uploadReportImage(id: string, kind: MediaKind, file: File)
 export async function getReportImageUrl(id: string, kind: MediaKind) {
   return api<{ signedUrl: string }>(`/api/reports/${id}/media/${kind}`)
 }
+export async function deleteReportImage(id: string, kind: MediaKind) {
+  return api<void>(`/api/reports/${id}/media/${kind}`, { method: 'DELETE' })
+}
+export async function generateIdentificationReport(id: string) {
+  return api<{ document: { path: string } }>(`/api/reports/${id}/documents/identification-report`, {
+    method: 'POST',
+  })
+}
+export async function getIdentificationReportUrl(id: string) {
+  return api<{ signedUrl: string }>(`/api/reports/${id}/documents/identification-report`)
+}

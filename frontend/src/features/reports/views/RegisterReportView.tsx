@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createReport } from '../api/reportsApi'
+import { createReport, uploadReportImage } from '../api/reportsApi'
 
 export function RegisterReportView({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
   const [error, setError] = useState('')
@@ -9,7 +9,7 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
     setError('')
     setIsSubmitting(true)
     try {
-      await createReport({
+      const report = await createReport({
         serialNumber: String(data.get('serialNumber') ?? '').trim(),
         issueDate: String(data.get('issueDate') ?? ''),
         species: String(data.get('species') ?? '').trim(),
@@ -20,6 +20,11 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
         dimensions: String(data.get('dimensions') ?? '').trim(),
         comments: String(data.get('comments') ?? '').trim() || undefined,
       })
+      const mainImage = data.get('mainImage')
+      const fingerprintImage = data.get('fingerprintImage')
+      if (mainImage instanceof File && mainImage.size > 0) await uploadReportImage(report.id, 'macro', mainImage)
+      if (fingerprintImage instanceof File && fingerprintImage.size > 0)
+        await uploadReportImage(report.id, 'inclusion', fingerprintImage)
       onComplete()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The report could not be saved.')
@@ -45,7 +50,7 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
       <p className="mt-8 text-sm font-semibold tracking-[0.2em] text-amber-400">REPORT REGISTRATION</p>
       <h1 className="mt-2 text-4xl font-semibold">New gemstone report</h1>
       <p className="mt-3 text-stone-400">
-        This creates the stable laboratory record. Inclusion image upload and extraction follow after the report exists.
+        Register the gemstone and optionally add its commercial image and fingerprint reference image in one workflow.
       </p>
       <form
         className="mt-8 rounded-xl border border-stone-800 bg-stone-900/30 p-6"
@@ -77,6 +82,26 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
             className="mt-1.5 w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 outline-none focus:border-amber-400"
           />
         </label>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm text-stone-300">
+            Main report image
+            <input
+              name="mainImage"
+              type="file"
+              accept="image/jpeg,image/png"
+              className="mt-1.5 block w-full text-sm text-stone-400 file:mr-3 file:rounded-md file:border-0 file:bg-stone-800 file:px-3 file:py-2 file:text-stone-200"
+            />
+          </label>
+          <label className="block text-sm text-stone-300">
+            Fingerprint reference image
+            <input
+              name="fingerprintImage"
+              type="file"
+              accept="image/jpeg,image/png"
+              className="mt-1.5 block w-full text-sm text-stone-400 file:mr-3 file:rounded-md file:border-0 file:bg-stone-800 file:px-3 file:py-2 file:text-stone-200"
+            />
+          </label>
+        </div>
         {error && (
           <p role="alert" className="mt-4 rounded-lg border border-red-900/70 bg-red-950/30 p-3 text-sm text-red-300">
             {error}

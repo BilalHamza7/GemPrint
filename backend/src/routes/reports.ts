@@ -8,7 +8,8 @@ import {
   saveFingerprint,
   updateReport,
 } from '../controllers/report-controller.js'
-import { getReportImageUrl, uploadReportImage } from '../controllers/media-controller.js'
+import { deleteReportImage, getReportImageUrl, uploadReportImage } from '../controllers/media-controller.js'
+import { generateIdentificationReport, getIdentificationReportUrl } from '../controllers/document-controller.js'
 import { imageUpload } from '../middleware/image-upload.js'
 
 export const reportsRouter = Router()
@@ -22,3 +23,6 @@ reportsRouter.post('/:id/restore', archiveReport)
 reportsRouter.post('/:id/fingerprint', saveFingerprint)
 reportsRouter.post('/:id/media/:kind', imageUpload.single('image'), uploadReportImage)
 reportsRouter.get('/:id/media/:kind', getReportImageUrl)
+reportsRouter.delete('/:id/media/:kind', deleteReportImage)
+reportsRouter.post('/:id/documents/identification-report', generateIdentificationReport)
+reportsRouter.get('/:id/documents/identification-report', getIdentificationReportUrl)

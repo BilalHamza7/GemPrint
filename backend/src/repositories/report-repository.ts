@@ -85,6 +85,15 @@ export class ReportRepository {
     return data as GemstoneReport | null
   }
 
+  async setDocumentPath(id: string, userId: string, path: string) {
+    const { error } = await getSupabaseAdminClient()
+      .from('gemstone_reports')
+      .update({ pdf_path: path, report_status: 'ready' })
+      .eq('id', id)
+      .eq('user_id', userId)
+    if (error) throw new Error(error.message)
+  }
+
   async saveFingerprint(reportId: string, input: FingerprintInput) {
     const client = getSupabaseAdminClient()
     const { data, error } = await client

@@ -21,4 +21,13 @@ export class MediaService {
     if (typeof path !== 'string' || !path) return { missing: true as const }
     return { signedUrl: await this.media.createSignedUrl(path) }
   }
+
+  async remove(userId: string, reportId: string, kind: MediaKind) {
+    const report = (await this.reports.findForUser(reportId, userId)) as Record<string, unknown> | null
+    if (!report) return null
+    const path = report[kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path']
+    if (typeof path !== 'string' || !path) return { missing: true as const }
+    await this.media.deleteReportImage({ userId, reportId, kind, path })
+    return { removed: true as const }
+  }
 }

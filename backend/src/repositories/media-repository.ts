@@ -16,6 +16,16 @@ export class MediaRepository {
       .upload(path, input.file.buffer, { contentType: input.file.mimetype, upsert: false })
     if (error) throw new Error(error.message)
     const column = input.kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path'
+    const { data: current, error: currentError } = await client
+      .from('gemstone_reports')
+      .select(column)
+      .eq('id', input.reportId)
+      .eq('user_id', input.userId)
+      .maybeSingle()
+    if (currentError) {
+      await client.storage.from(BUCKET).remove([path])
+      throw new Error(currentError.message)
+    }
     const { error: reportError } = await client
       .from('gemstone_reports')
       .update({ [column]: path })
@@ -25,7 +35,30 @@ export class MediaRepository {
       await client.storage.from(BUCKET).remove([path])
       throw new Error(reportError.message)
     }
+    const previousPath = (current as Record<string, unknown> | null)?.[column]
+    if (typeof previousPath === 'string' && previousPath && previousPath !== path)
+      await client.storage.from(BUCKET).remove([previousPath])
     return { path, contentType: input.file.mimetype, size: input.file.size }
+  }
+
+  async deleteReportImage(input: { userId: string; reportId: string; kind: MediaKind; path: string }) {
+    const column = input.kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path'
+    const client = getSupabaseAdminClient()
+    const { error: reportError } = await client
+      .from('gemstone_reports')
+      .update({ [column]: null })
+      .eq('id', input.reportId)
+      .eq('user_id', input.userId)
+    if (reportError) throw new Error(reportError.message)
+    const { error: storageError } = await client.storage.from(BUCKET).remove([input.path])
+    if (storageError) {
+      await client
+        .from('gemstone_reports')
+        .update({ [column]: input.path })
+        .eq('id', input.reportId)
+        .eq('user_id', input.userId)
+      throw new Error(storageError.message)
+    }
   }
 
   async createSignedUrl(path: string) {

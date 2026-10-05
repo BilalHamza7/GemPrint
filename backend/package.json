@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "@types/pdfkit": "^0.17.6",
     "bcryptjs": "^3.0.3",
     "cors": "latest",
     "dotenv": "latest",
@@ -21,6 +22,7 @@
     "helmet": "latest",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.4.0",
+    "pdfkit": "^0.17.2",
     "pino-http": "latest"
   },
   "devDependencies": {

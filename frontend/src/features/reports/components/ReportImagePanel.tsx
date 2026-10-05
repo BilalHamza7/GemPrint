@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { getReportImageUrl, type MediaKind, uploadReportImage } from '../api/reportsApi'
+import { deleteReportImage, getReportImageUrl, type MediaKind, uploadReportImage } from '../api/reportsApi'
 
 export function ReportImagePanel({
   reportId,
   kind,
   title,
   hasImage,
+  onChanged,
 }: {
   reportId: string
   kind: MediaKind
   title: string
   hasImage: boolean
+  onChanged: () => void
 }) {
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
@@ -28,8 +30,22 @@ export function ReportImagePanel({
       await uploadReportImage(reportId, kind, file)
       const { signedUrl } = await getReportImageUrl(reportId, kind)
       setUrl(signedUrl)
+      onChanged()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not upload image.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+  async function remove() {
+    setError('')
+    setIsUploading(true)
+    try {
+      await deleteReportImage(reportId, kind)
+      setUrl('')
+      onChanged()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete image.')
     } finally {
       setIsUploading(false)
     }
@@ -46,19 +62,31 @@ export function ReportImagePanel({
       ) : (
         <p className="mt-3 text-sm text-stone-400">No image uploaded.</p>
       )}
-      <label className="mt-4 block cursor-pointer rounded-lg border border-dashed border-stone-700 px-3 py-3 text-center text-sm text-stone-300 hover:border-amber-400">
-        {isUploading ? 'Uploading…' : url ? 'Replace image' : 'Upload JPEG or PNG'}
-        <input
-          className="sr-only"
-          disabled={isUploading}
-          type="file"
-          accept="image/jpeg,image/png"
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file) void upload(file)
-          }}
-        />
-      </label>
+      <div className="mt-4 flex gap-2">
+        <label className="block flex-1 cursor-pointer rounded-lg border border-dashed border-stone-700 px-3 py-3 text-center text-sm text-stone-300 hover:border-amber-400">
+          {isUploading ? 'Working…' : url ? 'Replace image' : 'Upload JPEG or PNG'}
+          <input
+            className="sr-only"
+            disabled={isUploading}
+            type="file"
+            accept="image/jpeg,image/png"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) void upload(file)
+            }}
+          />
+        </label>
+        {url && (
+          <button
+            type="button"
+            disabled={isUploading}
+            onClick={() => void remove()}
+            className="rounded-lg border border-stone-700 px-3 text-sm text-stone-300 hover:border-red-400 hover:text-red-300 disabled:opacity-60"
+          >
+            Remove
+          </button>
+        )}
+      </div>
       {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
     </article>
   )

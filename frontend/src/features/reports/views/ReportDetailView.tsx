@@ -1,16 +1,42 @@
-import { useEffect, useState } from 'react'
-import { getReport } from '../api/reportsApi'
+import { useCallback, useEffect, useState } from 'react'
+import { generateIdentificationReport, getIdentificationReportUrl, getReport } from '../api/reportsApi'
 import type { ReportDetail } from '../types/report'
 import { ReportImagePanel } from '../components/ReportImagePanel'
 
 export function ReportDetailView({ reportId, onBack }: { reportId: string; onBack: () => void }) {
   const [report, setReport] = useState<ReportDetail | null>(null)
   const [error, setError] = useState('')
-  useEffect(() => {
+  const [isGeneratingDocument, setIsGeneratingDocument] = useState(false)
+  const loadReport = useCallback(() => {
     void getReport(reportId)
       .then(setReport)
       .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load report.'))
   }, [reportId])
+  useEffect(loadReport, [loadReport])
+
+  async function generateDocument() {
+    setError('')
+    setIsGeneratingDocument(true)
+    try {
+      await generateIdentificationReport(reportId)
+      const { signedUrl } = await getIdentificationReportUrl(reportId)
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
+      loadReport()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not generate the identification report.')
+    } finally {
+      setIsGeneratingDocument(false)
+    }
+  }
+
+  async function downloadDocument() {
+    try {
+      const { signedUrl } = await getIdentificationReportUrl(reportId)
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not open the identification report.')
+    }
+  }
   if (error)
     return (
       <section className="mx-auto max-w-5xl px-6 py-12">
@@ -42,6 +68,29 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
           Private laboratory record created {new Date(report.created_at).toLocaleDateString()}.
         </p>
       </div>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={isGeneratingDocument}
+          onClick={() => void generateDocument()}
+          className="rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-stone-950 disabled:opacity-60"
+        >
+          {isGeneratingDocument
+            ? 'Generating…'
+            : report.pdf_path
+              ? 'Regenerate identification report'
+              : 'Generate identification report'}
+        </button>
+        {report.pdf_path && (
+          <button
+            type="button"
+            onClick={() => void downloadDocument()}
+            className="rounded-lg border border-stone-700 px-4 py-2.5 text-sm text-stone-200 hover:border-stone-500"
+          >
+            Download PDF
+          </button>
+        )}
+      </div>
       <div className="mt-9 grid gap-5 md:grid-cols-2">
         {fields.map(([label, value]) => (
           <article className="rounded-xl border border-stone-800 bg-stone-900/30 p-5" key={label}>
@@ -60,14 +109,16 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
         <ReportImagePanel
           reportId={report.id}
           kind="macro"
-          title="Macro image"
+          title="Main report image"
           hasImage={Boolean(report.macro_image_path)}
+          onChanged={loadReport}
         />
         <ReportImagePanel
           reportId={report.id}
           kind="inclusion"
-          title="Inclusion reference image"
+          title="Fingerprint reference image"
           hasImage={Boolean(report.inclusion_image_path)}
+          onChanged={loadReport}
         />
       </div>
       <div className="mt-5 grid gap-5 md:grid-cols-2">

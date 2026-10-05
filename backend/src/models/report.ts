@@ -11,6 +11,8 @@ export type GemstoneReport = {
   dimensions: string
   comments: string | null
   fingerprint_hash: string | null
+  report_status?: 'draft' | 'ready'
+  pdf_path?: string | null
   created_at: string
 }
 
