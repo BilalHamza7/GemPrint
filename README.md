@@ -34,6 +34,18 @@ The API uses the official `@supabase/supabase-js` client with the server-only se
 
 The browser calls `POST /api/reports/:id/media/:kind` with a multipart `image` field. The API checks the authenticated report owner, validates JPEG/PNG input up to 50 MB, uploads the bytes, and saves the resulting path on `gemstone_reports`. `GET /api/reports/:id/media/:kind` returns a 10-minute signed URL only after the same ownership check.
 
+## Release verification
+
+After a production deployment, verify the public application and service health endpoints:
+
+```text
+https://gem-print.vercel.app/
+https://gemprint-api.onrender.com/health
+https://gemprint-cv-engine.onrender.com/health
+```
+
+On Render Free, the first API or CV request after inactivity can take more than 50 seconds while the instance wakes. Retry the health request after that cold start before treating it as unavailable.
+
 ## Render configuration
 
 | Service | Root directory | Build command | Start command |
