@@ -3,11 +3,11 @@ import { getSupabaseAdminClient } from '../config/supabase.js'
 import type { CreateReportInput, FingerprintInput, GemstoneReport } from '../models/report.js'
 
 export class ReportRepository {
-  async listForLaboratory(laboratoryId: string, includeArchived = false) {
+  async listForUser(userId: string, includeArchived = false) {
     let query = getSupabaseAdminClient()
       .from('gemstone_reports')
       .select('*')
-      .eq('laboratory_id', laboratoryId)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (!includeArchived) query = query.is('archived_at', null)
     const { data, error } = await query
@@ -15,23 +15,22 @@ export class ReportRepository {
     return (data ?? []) as GemstoneReport[]
   }
 
-  async findForLaboratory(id: string, laboratoryId: string) {
+  async findForUser(id: string, userId: string) {
     const { data, error } = await getSupabaseAdminClient()
       .from('gemstone_reports')
       .select('*, fingerprint_data(*), verification_logs(*)')
       .eq('id', id)
-      .eq('laboratory_id', laboratoryId)
+      .eq('user_id', userId)
       .maybeSingle()
     if (error) throw new Error(error.message)
     return data
   }
 
-  async create(userId: string, laboratoryId: string, input: CreateReportInput) {
+  async create(userId: string, input: CreateReportInput) {
     const { data, error } = await getSupabaseAdminClient()
       .from('gemstone_reports')
       .insert({
         user_id: userId,
-        laboratory_id: laboratoryId,
         serial_number: input.serialNumber,
         issue_date: input.issueDate,
         species: input.species,
@@ -48,7 +47,7 @@ export class ReportRepository {
     return data as GemstoneReport
   }
 
-  async update(id: string, laboratoryId: string, input: Partial<CreateReportInput>) {
+  async update(id: string, userId: string, input: Partial<CreateReportInput>) {
     const columns: Record<string, unknown> = {}
     const mapping: Record<string, string> = {
       serialNumber: 'serial_number',
@@ -67,19 +66,19 @@ export class ReportRepository {
       .from('gemstone_reports')
       .update(columns)
       .eq('id', id)
-      .eq('laboratory_id', laboratoryId)
+      .eq('user_id', userId)
       .select()
       .maybeSingle()
     if (error) throw new Error(error.message)
     return data as GemstoneReport | null
   }
 
-  async setArchived(id: string, laboratoryId: string, archived: boolean) {
+  async setArchived(id: string, userId: string, archived: boolean) {
     const { data, error } = await getSupabaseAdminClient()
       .from('gemstone_reports')
       .update({ archived_at: archived ? new Date().toISOString() : null })
       .eq('id', id)
-      .eq('laboratory_id', laboratoryId)
+      .eq('user_id', userId)
       .select()
       .maybeSingle()
     if (error) throw new Error(error.message)

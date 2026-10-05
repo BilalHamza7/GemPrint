@@ -2,9 +2,7 @@ export type SessionUser = {
   id: string
   email: string
   fullName: string
-  laboratoryId: string
   laboratoryName: string
-  role: 'owner' | 'admin' | 'gemmologist' | 'viewer'
 }
 
 export type BrowserSession = { token: string; user: SessionUser }

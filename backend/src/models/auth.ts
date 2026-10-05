@@ -4,7 +4,7 @@ export type RegisterCredentials = LoginCredentials & {
   fullName: string
   phone?: string
   jobTitle?: string
-  laboratory: {
+  business: {
     legalName: string
     displayName: string
     registrationNumber?: string
@@ -21,7 +21,5 @@ export type AuthenticatedUser = {
   id: string
   email: string
   fullName: string
-  laboratoryId: string
   laboratoryName: string
-  role: 'owner' | 'admin' | 'gemmologist' | 'viewer'
 }

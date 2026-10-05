@@ -54,7 +54,7 @@ export function validateRegistration(body: unknown): RegisterCredentials | null 
     fullName,
     ...(phone ? { phone } : {}),
     ...(jobTitle ? { jobTitle } : {}),
-    laboratory: {
+    business: {
       legalName,
       displayName,
       businessEmail,

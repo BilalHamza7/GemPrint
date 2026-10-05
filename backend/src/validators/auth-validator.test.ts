@@ -16,7 +16,7 @@ describe('authentication request validation', () => {
     expect(registration).toMatchObject({
       email: 'ayesha@example.com',
       fullName: 'Ayesha Perera',
-      laboratory: { displayName: 'Perera Gem Laboratory', country: 'Sri Lanka' },
+      business: { displayName: 'Perera Gem Laboratory', country: 'Sri Lanka' },
     })
   })
 

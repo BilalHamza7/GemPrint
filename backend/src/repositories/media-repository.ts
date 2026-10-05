@@ -6,15 +6,10 @@ const BUCKET = 'gem_print_media'
 const extensionByMimeType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png' }
 
 export class MediaRepository {
-  async uploadReportImage(input: {
-    laboratoryId: string
-    reportId: string
-    kind: MediaKind
-    file: Express.Multer.File
-  }) {
+  async uploadReportImage(input: { userId: string; reportId: string; kind: MediaKind; file: Express.Multer.File }) {
     const extension = extensionByMimeType[input.file.mimetype]
     if (!extension) throw new Error('Only JPEG and PNG images are supported.')
-    const path = `${input.laboratoryId}/reports/${input.reportId}/${input.kind}/${crypto.randomUUID()}.${extension}`
+    const path = `${input.userId}/reports/${input.reportId}/${input.kind}/${crypto.randomUUID()}.${extension}`
     const client = getSupabaseAdminClient()
     const { error } = await client.storage
       .from(BUCKET)
@@ -25,7 +20,7 @@ export class MediaRepository {
       .from('gemstone_reports')
       .update({ [column]: path })
       .eq('id', input.reportId)
-      .eq('laboratory_id', input.laboratoryId)
+      .eq('user_id', input.userId)
     if (reportError) {
       await client.storage.from(BUCKET).remove([path])
       throw new Error(reportError.message)

@@ -8,14 +8,14 @@ export class MediaService {
     private readonly media = new MediaRepository(),
   ) {}
 
-  async upload(laboratoryId: string, reportId: string, kind: MediaKind, file: Express.Multer.File) {
-    const report = await this.reports.findForLaboratory(reportId, laboratoryId)
+  async upload(userId: string, reportId: string, kind: MediaKind, file: Express.Multer.File) {
+    const report = await this.reports.findForUser(reportId, userId)
     if (!report) return null
-    return this.media.uploadReportImage({ laboratoryId, reportId, kind, file })
+    return this.media.uploadReportImage({ userId, reportId, kind, file })
   }
 
-  async signedUrl(laboratoryId: string, reportId: string, kind: MediaKind) {
-    const report = (await this.reports.findForLaboratory(reportId, laboratoryId)) as Record<string, unknown> | null
+  async signedUrl(userId: string, reportId: string, kind: MediaKind) {
+    const report = (await this.reports.findForUser(reportId, userId)) as Record<string, unknown> | null
     if (!report) return null
     const path = report[kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path']
     if (typeof path !== 'string' || !path) return { missing: true as const }

@@ -8,19 +8,11 @@ export async function requireAuth(request: Request, response: Response, next: Ne
   if (!env.JWT_SECRET) return response.status(503).json({ error: 'Authentication is not configured.' })
   try {
     const payload = jwt.verify(token, env.JWT_SECRET, { issuer: 'gemprint-api', audience: 'gemprint-web' })
-    if (
-      typeof payload === 'string' ||
-      !payload.sub ||
-      typeof payload.email !== 'string' ||
-      typeof payload.laboratoryId !== 'string' ||
-      !['owner', 'admin', 'gemmologist', 'viewer'].includes(String(payload.role))
-    )
+    if (typeof payload === 'string' || !payload.sub || typeof payload.email !== 'string')
       return response.status(401).json({ error: 'Invalid or expired session.' })
     request.user = {
       id: payload.sub,
       email: payload.email,
-      laboratoryId: payload.laboratoryId,
-      role: payload.role as 'owner' | 'admin' | 'gemmologist' | 'viewer',
     }
     return next()
   } catch {
