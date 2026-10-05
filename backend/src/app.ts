@@ -12,7 +12,15 @@ type UploadError = Error & { code?: string }
 export const app = express()
 app.disable('x-powered-by')
 app.use(helmet())
-app.use(cors({ origin: env.FRONTEND_URL, methods: ['GET', 'POST'], credentials: true }))
+const frontendOrigin = env.FRONTEND_URL.replace(/\/+$/, '')
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || origin.replace(/\/+$/, '') === frontendOrigin) return callback(null, true)
+    return callback(new Error('Origin is not allowed by CORS.'))
+  },
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}))
 app.use(express.json({ limit: '12mb' }))
 app.use(pinoHttp())
 app.use('/health', healthRouter)
