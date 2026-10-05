@@ -16,11 +16,13 @@
     "dotenv": "latest",
     "express": "latest",
     "helmet": "latest",
+    "multer": "^2.4.0",
     "pino-http": "latest"
   },
   "devDependencies": {
     "@types/cors": "latest",
     "@types/express": "latest",
+    "@types/multer": "^2.3.0",
     "@types/node": "latest",
     "tsx": "latest",
     "typescript": "latest",

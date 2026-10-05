@@ -24,6 +24,16 @@ The Node API is the only service the browser calls. It owns authentication, auth
 
 Both Render services use the Free plan. They can spin down after inactivity and take 50 seconds or more to wake. This is expected behaviour on that plan, not a failed health check.
 
+## Private media flow
+
+The API uses the official `@supabase/supabase-js` client with the server-only service-role key. It writes report media to the private `gem_print_media` bucket using an ownership-scoped path:
+
+```text
+{user-id}/reports/{report-id}/{macro|inclusion}/{random-id}.{jpg|png}
+```
+
+The browser calls `POST /api/reports/:id/media/:kind` with a multipart `image` field. The API checks the authenticated report owner, validates JPEG/PNG input up to 50 MB, uploads the bytes, and saves the resulting path on `gemstone_reports`. `GET /api/reports/:id/media/:kind` returns a 10-minute signed URL only after the same ownership check.
+
 ## Render configuration
 
 | Service | Root directory | Build command | Start command |
