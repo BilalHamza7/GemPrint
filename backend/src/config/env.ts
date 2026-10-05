@@ -6,10 +6,9 @@ export const env = {
   PORT: port,
   FRONTEND_URL: process.env.FRONTEND_URL ?? 'http://localhost:5173',
   SUPABASE_URL: process.env.SUPABASE_URL,
-  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   CV_SERVICE_URL: process.env.CV_SERVICE_URL ?? 'http://localhost:8000',
   CV_INTERNAL_SERVICE_KEY: process.env.CV_INTERNAL_SERVICE_KEY ?? 'development-only-change-me',
   JWT_SECRET: process.env.JWT_SECRET,
 }
-export const supabaseConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.SUPABASE_SERVICE_ROLE_KEY)
+export const supabaseConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY)
