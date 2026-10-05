@@ -25,6 +25,14 @@ function valueOrDash(value: unknown) {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : '—'
 }
 
+function labelValue(document: PDFKit.PDFDocument, label: string, value: unknown, x: number, y: number, width: number) {
+  document.fillColor('#777777').fontSize(8).text(label.toUpperCase(), x, y, { width })
+  document
+    .fillColor('#202020')
+    .fontSize(10)
+    .text(valueOrDash(value), x, y + 11, { width })
+}
+
 export class DocumentService {
   constructor(
     private readonly reports = new ReportRepository(),
@@ -38,40 +46,84 @@ export class DocumentService {
     const profile = await this.profiles.findById(userId)
     if (!profile) throw new Error('Profile not found.')
     const pdf = await renderPdf(async (document) => {
-      document.fillColor('#b88016').fontSize(10).text('GEMPRINT', { characterSpacing: 2 })
-      document.fillColor('#171717').fontSize(24).text('Gem Identification Report', { continued: false })
+      const pageWidth = document.page.width
+      const margin = document.page.margins.left
+      const contentWidth = pageWidth - margin * 2
+      const detailX = margin
+      const imageX = margin + 315
+      const imageWidth = 180
+
+      document.rect(0, 0, pageWidth, 9).fill('#c18b2d')
+      document.fillColor('#c18b2d').fontSize(10).text('GEMPRINT', margin, 34, { characterSpacing: 2.2 })
       document
-        .moveDown(0.5)
-        .fillColor('#555555')
+        .fillColor('#181818')
+        .fontSize(17)
+        .text(valueOrDash(profile.laboratory_name), margin, 49, { width: 305, height: 36 })
+      document
+        .fillColor('#565656')
         .fontSize(9)
-        .text(`Report serial: ${valueOrDash(report.serial_number)}`)
-      document.text(`Issued: ${valueOrDash(report.issue_date)}`)
-      document.moveDown()
-      document.fillColor('#171717').fontSize(13).text('Issuing laboratory')
-      document.fontSize(10).fillColor('#333333').text(valueOrDash(profile.laboratory_name))
-      document.text(valueOrDash(profile.legal_business_name))
-      if (profile.full_name) document.text(`Prepared by: ${profile.full_name}`)
-      if (profile.business_registration_number) document.text(`Registration: ${profile.business_registration_number}`)
-      document.text([profile.business_email, profile.business_phone].filter(Boolean).join('  ·  ') || '—')
-      document.text([profile.address_line_1, profile.city, profile.country].filter(Boolean).join(', ') || '—')
-      if (profile.website) document.text(profile.website)
-      document.moveDown()
+        .text(valueOrDash(profile.legal_business_name), margin, 91, { width: 305 })
+      document
+        .fontSize(8)
+        .text([profile.business_email, profile.business_phone].filter(Boolean).join('  |  '), margin, 104, {
+          width: 305,
+        })
+      document.text([profile.address_line_1, profile.city, profile.country].filter(Boolean).join(', '), margin, 115, {
+        width: 305,
+      })
+      document
+        .fillColor('#181818')
+        .fontSize(14)
+        .text('GEM IDENTIFICATION\nREPORT', imageX, 49, { width: imageWidth, align: 'right', lineGap: 1 })
+      document
+        .fillColor('#777777')
+        .fontSize(8)
+        .text('Private laboratory record', imageX, 84, { width: imageWidth, align: 'right' })
+      document
+        .moveTo(margin, 139)
+        .lineTo(margin + contentWidth, 139)
+        .lineWidth(0.8)
+        .strokeColor('#d7d1c6')
+        .stroke()
+
+      labelValue(document, 'Report no.', report.serial_number, detailX, 155, 138)
+      labelValue(document, 'Issue date', report.issue_date, detailX + 150, 155, 138)
+      labelValue(document, 'Prepared by', profile.full_name, detailX, 192, 138)
+      labelValue(document, 'Business registration', profile.business_registration_number, detailX + 150, 192, 138)
+
       const imagePath = report.macro_image_path
+      document.rect(imageX, 152, imageWidth, 145).fillAndStroke('#f6f3ed', '#d7d1c6')
       if (typeof imagePath === 'string' && imagePath) {
         try {
           const image = await this.documents.downloadImage(imagePath)
-          document.fillColor('#171717').fontSize(13).text('Gemstone image')
-          document.moveDown(0.4).image(image, { fit: [490, 250], align: 'center' })
-          document.moveDown()
+          document.image(image, imageX + 8, 160, { fit: [imageWidth - 16, 126], align: 'center', valign: 'center' })
         } catch {
           document
             .fillColor('#777777')
-            .fontSize(9)
-            .text('Main gemstone image could not be embedded at generation time.')
-          document.moveDown()
+            .fontSize(8)
+            .text('Image unavailable', imageX, 218, { width: imageWidth, align: 'center' })
         }
+      } else {
+        document
+          .fillColor('#777777')
+          .fontSize(8)
+          .text('Main gemstone image', imageX, 218, { width: imageWidth, align: 'center' })
       }
-      document.fillColor('#171717').fontSize(13).text('Gemstone details')
+      document
+        .fillColor('#777777')
+        .fontSize(7)
+        .text('Photograph is illustrative; colour and scale may vary.', imageX, 303, {
+          width: imageWidth,
+          align: 'center',
+        })
+
+      document.fillColor('#c18b2d').fontSize(10).text('GEMSTONE DETAILS', margin, 257, { characterSpacing: 1.2 })
+      document
+        .moveTo(margin, 275)
+        .lineTo(margin + contentWidth, 275)
+        .lineWidth(0.6)
+        .strokeColor('#d7d1c6')
+        .stroke()
       const rows: Array<[string, unknown]> = [
         ['Species', report.species],
         ['Variety', report.variety],
@@ -80,20 +132,53 @@ export class DocumentService {
         ['Cut / shape', report.cut_shape],
         ['Dimensions', report.dimensions],
       ]
-      for (const [label, value] of rows) {
-        document.fontSize(9).fillColor('#777777').text(label)
-        document.fontSize(11).fillColor('#222222').text(valueOrDash(value))
-        document.moveDown(0.35)
-      }
-      document.moveDown(0.5).fillColor('#171717').fontSize(13).text('Observations')
-      document.moveDown(0.3).fontSize(10).fillColor('#333333').text(valueOrDash(report.comments))
+      rows.forEach(([label, value], index) => {
+        const rowY = 290 + index * 29
+        document.fillColor('#777777').fontSize(8).text(label, detailX, rowY, { width: 130 })
+        document
+          .fillColor('#202020')
+          .fontSize(10)
+          .text(valueOrDash(value), detailX + 140, rowY, { width: 170 })
+        document
+          .moveTo(detailX, rowY + 20)
+          .lineTo(detailX + 310, rowY + 20)
+          .lineWidth(0.35)
+          .strokeColor('#e2ddd4')
+          .stroke()
+      })
+
+      document.fillColor('#c18b2d').fontSize(10).text('LABORATORY OBSERVATIONS', margin, 478, { characterSpacing: 1.2 })
       document
-        .moveDown(2)
+        .moveTo(margin, 496)
+        .lineTo(margin + contentWidth, 496)
+        .lineWidth(0.6)
+        .strokeColor('#d7d1c6')
+        .stroke()
+      document
+        .fillColor('#333333')
+        .fontSize(10)
+        .text(valueOrDash(report.comments), margin, 510, { width: contentWidth, height: 70, lineGap: 2 })
+
+      document
+        .moveTo(margin, 604)
+        .lineTo(margin + contentWidth, 604)
+        .lineWidth(0.6)
+        .strokeColor('#d7d1c6')
+        .stroke()
+      document.fillColor('#555555').fontSize(8).text('Issued by', margin, 616)
+      document.fillColor('#202020').fontSize(10).text(valueOrDash(profile.full_name), margin, 628)
+      document
+        .fillColor('#555555')
         .fontSize(8)
+        .text('GemPrint identification record', margin + 330, 616, { width: 165, align: 'right' })
+      document
         .fillColor('#777777')
+        .fontSize(7)
         .text(
-          'This report records the laboratory observations supplied at issuance. Fingerprint extraction and verification results are issued separately when available.',
-          { align: 'center' },
+          'This document records the gemstone details and observations supplied by the issuing laboratory. It is not a substitute for independent professional assessment.',
+          margin,
+          680,
+          { width: contentWidth, align: 'center' },
         )
     })
     const path = await this.documents.uploadPdf(userId, reportId, pdf)
