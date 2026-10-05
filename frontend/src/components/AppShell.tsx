@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
-export type AppPage = 'home' | 'auth' | 'dashboard' | 'register' | 'verify'
+export type AppPage = 'home' | 'auth' | 'dashboard' | 'register' | 'detail' | 'verify'
 
 type AppShellProps = { children: ReactNode; user: User | null; page: AppPage; onNavigate: (page: AppPage) => void }
 

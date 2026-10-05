@@ -23,6 +23,24 @@ export function validateCreateReport(body: unknown): CreateReportInput | null {
   return { serialNumber, issueDate, species, variety, caratWeight, colour, cutShape, dimensions, comments: comments || undefined }
 }
 
+export function validateUpdateReport(body: unknown): Partial<CreateReportInput> | null {
+  if (!body || typeof body !== 'object') return null
+  const value = body as Record<string, unknown>
+  const result: Partial<CreateReportInput> = {}
+  const fields = ['serialNumber', 'issueDate', 'species', 'variety', 'colour', 'cutShape', 'dimensions', 'comments'] as const
+  for (const field of fields) {
+    if (value[field] === undefined) continue
+    const parsed = text(value[field], field !== 'comments')
+    if (parsed === null) return null
+    result[field] = parsed || undefined
+  }
+  if (value.caratWeight !== undefined) {
+    if (typeof value.caratWeight !== 'number' || !Number.isFinite(value.caratWeight) || value.caratWeight <= 0) return null
+    result.caratWeight = value.caratWeight
+  }
+  return Object.keys(result).length ? result : null
+}
+
 export function validateFingerprint(body: unknown): FingerprintInput | null {
   if (!body || typeof body !== 'object') return null
   const value = body as Record<string, unknown>

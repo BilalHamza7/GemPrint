@@ -5,6 +5,7 @@ import { AuthView } from '../features/auth/views/AuthView'
 import { DashboardView } from '../features/dashboard/views/DashboardView'
 import { HomeView } from '../features/home/views/HomeView'
 import { RegisterReportView } from '../features/reports/views/RegisterReportView'
+import { ReportDetailView } from '../features/reports/views/ReportDetailView'
 import { VerificationView } from '../features/verification/views/VerificationView'
 import { supabase } from '../lib/supabase'
 
@@ -13,6 +14,7 @@ export function App() {
   const [page, setPage] = useState<AppPage>('home')
   const [user, setUser] = useState<User | null>(null)
   const [isSessionLoading, setIsSessionLoading] = useState(true)
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!supabase) {
@@ -32,7 +34,7 @@ export function App() {
   }, [])
 
   function navigate(nextPage: AppPage) {
-    if (['dashboard', 'register', 'verify'].includes(nextPage) && !user) {
+    if (['dashboard', 'register', 'detail', 'verify'].includes(nextPage) && !user) {
       setPage('auth')
       return
     }
@@ -42,8 +44,9 @@ export function App() {
   if (isSessionLoading) return <main className="grid min-h-screen place-items-center bg-stone-950 text-stone-300">Restoring laboratory session…</main>
 
   const content = page === 'auth' ? <AuthView onAuthenticated={() => navigate('dashboard')} onBack={() => navigate('home')} />
-    : page === 'dashboard' ? <DashboardView onNavigate={navigate} />
+    : page === 'dashboard' ? <DashboardView onNavigate={navigate} onOpenReport={(id) => { setSelectedReportId(id); navigate('detail') }} />
       : page === 'register' ? <RegisterReportView onComplete={() => navigate('dashboard')} onCancel={() => navigate('dashboard')} />
+        : page === 'detail' && selectedReportId ? <ReportDetailView reportId={selectedReportId} onBack={() => navigate('dashboard')} />
         : page === 'verify' ? <VerificationView onBack={() => navigate('dashboard')} />
           : <HomeView onStart={() => navigate(user ? 'dashboard' : 'auth')} />
 

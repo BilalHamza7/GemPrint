@@ -21,6 +21,15 @@ export class ReportRepository {
     return data as GemstoneReport
   }
 
+  async update(id: string, userId: string, input: Partial<CreateReportInput>) {
+    const columns: Record<string, unknown> = {}
+    const mapping: Record<string, string> = { serialNumber: 'serial_number', issueDate: 'issue_date', caratWeight: 'carat_weight', species: 'species', variety: 'variety', colour: 'colour', cutShape: 'cut_shape', dimensions: 'dimensions', comments: 'comments' }
+    for (const [key, column] of Object.entries(mapping)) if (key in input) columns[column] = input[key as keyof CreateReportInput] ?? null
+    const { data, error } = await getSupabaseAdminClient().from('gemstone_reports').update(columns).eq('id', id).eq('user_id', userId).select().maybeSingle()
+    if (error) throw new Error(error.message)
+    return data as GemstoneReport | null
+  }
+
   async saveFingerprint(reportId: string, input: FingerprintInput) {
     const client = getSupabaseAdminClient()
     const { data, error } = await client.from('fingerprint_data').upsert({ id: crypto.randomUUID(), gemstone_report_id: reportId, keypoint_count: input.keypointCount, keypoint_metadata_json: input.keypoints ?? [], fingerprint_metadata_json: input.metadata ?? {} }, { onConflict: 'gemstone_report_id' }).select().single()

@@ -6,6 +6,7 @@ export class ReportService {
   list(userId: string) { return this.reports.listForUser(userId) }
   get(id: string, userId: string) { return this.reports.findForUser(id, userId) }
   create(userId: string, input: CreateReportInput) { return this.reports.create(userId, input) }
+  update(id: string, userId: string, input: Partial<CreateReportInput>) { return this.reports.update(id, userId, input) }
   async storeFingerprint(id: string, userId: string, input: FingerprintInput) {
     const report = await this.reports.findForUser(id, userId)
     if (!report) return null
