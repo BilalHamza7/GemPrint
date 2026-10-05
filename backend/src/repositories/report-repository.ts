@@ -1,0 +1,32 @@
+import crypto from 'node:crypto'
+import { getSupabaseAdminClient } from '../config/supabase.js'
+import type { CreateReportInput, FingerprintInput, GemstoneReport } from '../models/report.js'
+
+export class ReportRepository {
+  async listForUser(userId: string) {
+    const { data, error } = await getSupabaseAdminClient().from('gemstone_reports').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return (data ?? []) as GemstoneReport[]
+  }
+
+  async findForUser(id: string, userId: string) {
+    const { data, error } = await getSupabaseAdminClient().from('gemstone_reports').select('*, fingerprint_data(*), verification_logs(*)').eq('id', id).eq('user_id', userId).maybeSingle()
+    if (error) throw new Error(error.message)
+    return data
+  }
+
+  async create(userId: string, input: CreateReportInput) {
+    const { data, error } = await getSupabaseAdminClient().from('gemstone_reports').insert({ user_id: userId, serial_number: input.serialNumber, issue_date: input.issueDate, species: input.species, variety: input.variety, carat_weight: input.caratWeight, colour: input.colour, cut_shape: input.cutShape, dimensions: input.dimensions, comments: input.comments ?? null }).select().single()
+    if (error) throw new Error(error.message)
+    return data as GemstoneReport
+  }
+
+  async saveFingerprint(reportId: string, input: FingerprintInput) {
+    const client = getSupabaseAdminClient()
+    const { data, error } = await client.from('fingerprint_data').upsert({ id: crypto.randomUUID(), gemstone_report_id: reportId, keypoint_count: input.keypointCount, keypoint_metadata_json: input.keypoints ?? [], fingerprint_metadata_json: input.metadata ?? {} }, { onConflict: 'gemstone_report_id' }).select().single()
+    if (error) throw new Error(error.message)
+    const { error: updateError } = await client.from('gemstone_reports').update({ fingerprint_hash: input.fingerprintHash }).eq('id', reportId)
+    if (updateError) throw new Error(updateError.message)
+    return data
+  }
+}

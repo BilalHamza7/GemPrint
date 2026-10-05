@@ -1,0 +1,14 @@
+import { ReportRepository } from '../repositories/report-repository.js'
+import type { CreateReportInput, FingerprintInput } from '../models/report.js'
+
+export class ReportService {
+  constructor(private readonly reports = new ReportRepository()) {}
+  list(userId: string) { return this.reports.listForUser(userId) }
+  get(id: string, userId: string) { return this.reports.findForUser(id, userId) }
+  create(userId: string, input: CreateReportInput) { return this.reports.create(userId, input) }
+  async storeFingerprint(id: string, userId: string, input: FingerprintInput) {
+    const report = await this.reports.findForUser(id, userId)
+    if (!report) return null
+    return this.reports.saveFingerprint(id, input)
+  }
+}
