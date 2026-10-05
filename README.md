@@ -19,7 +19,7 @@ The Node API is the only service the browser calls. It owns authentication, auth
 | Platform | Variables required | Notes |
 | --- | --- | --- |
 | Vercel (`gem-print`) | `VITE_API_URL` | Set for the Production environment. No Supabase key belongs in Vercel. |
-| Render (`gemprint-api`) | `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET`, `CV_SERVICE_URL`, `CV_INTERNAL_SERVICE_KEY` | `FRONTEND_URL` must be the exact Vercel production origin without a trailing slash. `JWT_SECRET` should be generated in Render. |
+| Render (`gemprint-api`) | `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET`, `CV_SERVICE_URL`, `CV_INTERNAL_SERVICE_KEY` | `FRONTEND_URL` must be the exact Vercel production origin without a trailing slash. `SUPABASE_URL` must be the project base URL (for example, `https://project-ref.supabase.co`), not the `/rest/v1` API endpoint. `JWT_SECRET` should be generated in Render. |
 | Render (`gemprint-cv-service`) | `CV_INTERNAL_SERVICE_KEY` | Must exactly match the API value. The CV service must not receive Supabase credentials. |
 
 Both Render services use the Free plan. They can spin down after inactivity and take 50 seconds or more to wake. This is expected behaviour on that plan, not a failed health check.
