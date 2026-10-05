@@ -25,6 +25,9 @@ describe('authentication request validation', () => {
   })
 
   it('normalizes a valid sign-in email', () => {
-    expect(validateLogin({ email: ' TEST@EXAMPLE.COM ', password: 'secure-password-1' })).toEqual({ email: 'test@example.com', password: 'secure-password-1' })
+    expect(validateLogin({ email: ' TEST@EXAMPLE.COM ', password: 'secure-password-1' })).toEqual({
+      email: 'test@example.com',
+      password: 'secure-password-1',
+    })
   })
 })

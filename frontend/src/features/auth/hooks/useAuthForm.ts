@@ -14,24 +14,29 @@ export function useAuthForm(onAuthenticated: (user: SessionUser) => void) {
     const email = String(fields.get('email') ?? '').trim()
     const password = String(fields.get('password') ?? '')
     const fullName = String(fields.get('fullName') ?? '').trim()
-    setError(''); setMessage(''); setIsSubmitting(true)
+    setError('')
+    setMessage('')
+    setIsSubmitting(true)
     try {
-      const session = mode === 'register'
-        ? await registerAccount({
-            fullName, email, password,
-            phone: String(fields.get('phone') ?? '').trim() || undefined,
-            jobTitle: String(fields.get('jobTitle') ?? '').trim() || undefined,
-            legalName: String(fields.get('legalName') ?? '').trim(),
-            displayName: String(fields.get('displayName') ?? '').trim(),
-            registrationNumber: String(fields.get('registrationNumber') ?? '').trim() || undefined,
-            businessEmail: String(fields.get('businessEmail') ?? '').trim() || email,
-            businessPhone: String(fields.get('businessPhone') ?? '').trim() || undefined,
-            website: String(fields.get('website') ?? '').trim() || undefined,
-            addressLine1: String(fields.get('addressLine1') ?? '').trim() || undefined,
-            city: String(fields.get('city') ?? '').trim() || undefined,
-            country: String(fields.get('country') ?? '').trim() || undefined,
-          })
-        : await loginAccount(email, password)
+      const session =
+        mode === 'register'
+          ? await registerAccount({
+              fullName,
+              email,
+              password,
+              phone: String(fields.get('phone') ?? '').trim() || undefined,
+              jobTitle: String(fields.get('jobTitle') ?? '').trim() || undefined,
+              legalName: String(fields.get('legalName') ?? '').trim(),
+              displayName: String(fields.get('displayName') ?? '').trim(),
+              registrationNumber: String(fields.get('registrationNumber') ?? '').trim() || undefined,
+              businessEmail: String(fields.get('businessEmail') ?? '').trim() || email,
+              businessPhone: String(fields.get('businessPhone') ?? '').trim() || undefined,
+              website: String(fields.get('website') ?? '').trim() || undefined,
+              addressLine1: String(fields.get('addressLine1') ?? '').trim() || undefined,
+              city: String(fields.get('city') ?? '').trim() || undefined,
+              country: String(fields.get('country') ?? '').trim() || undefined,
+            })
+          : await loginAccount(email, password)
       saveSession(session)
       onAuthenticated(session.user)
     } catch (caught) {

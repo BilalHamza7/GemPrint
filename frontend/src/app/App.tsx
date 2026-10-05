@@ -28,19 +28,41 @@ export function App() {
   }
 
   async function signOut() {
-    try { await api('/api/auth/logout', { method: 'POST' }) } catch { /* Local clearance is still the safe logout action. */ }
+    try {
+      await api('/api/auth/logout', { method: 'POST' })
+    } catch {
+      /* Local clearance is still the safe logout action. */
+    }
     clearSession()
     setUser(null)
     setSelectedReportId(null)
     setPage('home')
   }
 
-  const content = page === 'auth' ? <AuthView onAuthenticated={authenticated} onBack={() => navigate('home')} />
-    : page === 'dashboard' ? <DashboardView onNavigate={navigate} onOpenReport={(id) => { setSelectedReportId(id); navigate('detail') }} />
-      : page === 'register' ? <RegisterReportView onComplete={() => navigate('dashboard')} onCancel={() => navigate('dashboard')} />
-        : page === 'detail' && selectedReportId ? <ReportDetailView reportId={selectedReportId} onBack={() => navigate('dashboard')} />
-        : page === 'verify' ? <VerificationView onBack={() => navigate('dashboard')} />
-          : <HomeView onStart={() => navigate(user ? 'dashboard' : 'auth')} />
+  const content =
+    page === 'auth' ? (
+      <AuthView onAuthenticated={authenticated} onBack={() => navigate('home')} />
+    ) : page === 'dashboard' ? (
+      <DashboardView
+        onNavigate={navigate}
+        onOpenReport={(id) => {
+          setSelectedReportId(id)
+          navigate('detail')
+        }}
+      />
+    ) : page === 'register' ? (
+      <RegisterReportView onComplete={() => navigate('dashboard')} onCancel={() => navigate('dashboard')} />
+    ) : page === 'detail' && selectedReportId ? (
+      <ReportDetailView reportId={selectedReportId} onBack={() => navigate('dashboard')} />
+    ) : page === 'verify' ? (
+      <VerificationView onBack={() => navigate('dashboard')} />
+    ) : (
+      <HomeView onStart={() => navigate(user ? 'dashboard' : 'auth')} />
+    )
 
-  return <AppShell user={user} page={page} onNavigate={navigate} onSignOut={() => void signOut()}>{content}</AppShell>
+  return (
+    <AppShell user={user} page={page} onNavigate={navigate} onSignOut={() => void signOut()}>
+      {content}
+    </AppShell>
+  )
 }

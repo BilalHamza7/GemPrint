@@ -13,22 +13,26 @@ export const app = express()
 app.disable('x-powered-by')
 app.use(helmet())
 const frontendOrigin = env.FRONTEND_URL.replace(/\/+$/, '')
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || origin.replace(/\/+$/, '') === frontendOrigin) return callback(null, true)
-    return callback(new Error('Origin is not allowed by CORS.'))
-  },
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  credentials: true,
-}))
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || origin.replace(/\/+$/, '') === frontendOrigin) return callback(null, true)
+      return callback(new Error('Origin is not allowed by CORS.'))
+    },
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  }),
+)
 app.use(express.json({ limit: '12mb' }))
 app.use(pinoHttp())
 app.use('/health', healthRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/reports', reportsRouter)
 app.use((error: UploadError, _request: express.Request, response: express.Response, next: express.NextFunction) => {
-  if (error.code === 'LIMIT_FILE_SIZE') return response.status(413).json({ error: 'Image exceeds the 50 MB upload limit.' })
-  if (error.message === 'Unexpected field') return response.status(400).json({ error: 'Use the image form field for uploads.' })
+  if (error.code === 'LIMIT_FILE_SIZE')
+    return response.status(413).json({ error: 'Image exceeds the 50 MB upload limit.' })
+  if (error.message === 'Unexpected field')
+    return response.status(400).json({ error: 'Use the image form field for uploads.' })
   return next(error)
 })
 app.use((_request, response) => response.status(404).json({ error: 'Route not found' }))

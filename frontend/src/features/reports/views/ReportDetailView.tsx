@@ -6,10 +6,82 @@ import { ReportImagePanel } from '../components/ReportImagePanel'
 export function ReportDetailView({ reportId, onBack }: { reportId: string; onBack: () => void }) {
   const [report, setReport] = useState<ReportDetail | null>(null)
   const [error, setError] = useState('')
-  useEffect(() => { void getReport(reportId).then(setReport).catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load report.')) }, [reportId])
-  if (error) return <section className="mx-auto max-w-5xl px-6 py-12"><button className="text-stone-400" onClick={onBack}>← Registry</button><p className="mt-8 text-red-300">{error}</p></section>
+  useEffect(() => {
+    void getReport(reportId)
+      .then(setReport)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load report.'))
+  }, [reportId])
+  if (error)
+    return (
+      <section className="mx-auto max-w-5xl px-6 py-12">
+        <button className="text-stone-400" onClick={onBack}>
+          ← Registry
+        </button>
+        <p className="mt-8 text-red-300">{error}</p>
+      </section>
+    )
   if (!report) return <section className="mx-auto max-w-5xl px-6 py-12 text-stone-400">Loading report…</section>
-  const fields = [['Species', report.species], ['Variety', report.variety], ['Weight', `${report.carat_weight} ct`], ['Colour', report.colour], ['Cut / shape', report.cut_shape], ['Dimensions', report.dimensions], ['Issued', report.issue_date]]
-  return <section className="mx-auto max-w-5xl px-6 py-12"><button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>← Back to registry</button><div className="mt-8"><p className="text-sm font-semibold tracking-[0.2em] text-amber-400">REPORT DETAIL</p><h1 className="mt-2 text-4xl font-semibold">{report.serial_number}</h1><p className="mt-2 text-stone-400">Private laboratory record created {new Date(report.created_at).toLocaleDateString()}.</p></div><div className="mt-9 grid gap-5 md:grid-cols-2">{fields.map(([label, value]) => <article className="rounded-xl border border-stone-800 bg-stone-900/30 p-5" key={label}><p className="text-xs uppercase tracking-wider text-stone-500">{label}</p><p className="mt-2 font-medium text-stone-100">{value}</p></article>)}</div><article className="mt-5 rounded-xl border border-stone-800 bg-stone-900/30 p-5"><p className="text-xs uppercase tracking-wider text-stone-500">Observations</p><p className="mt-2 whitespace-pre-wrap leading-7 text-stone-300">{report.comments || 'No observations recorded.'}</p></article><div className="mt-5 grid gap-5 md:grid-cols-2"><ReportImagePanel reportId={report.id} kind="macro" title="Macro image" hasImage={Boolean(report.macro_image_path)} /><ReportImagePanel reportId={report.id} kind="inclusion" title="Inclusion reference image" hasImage={Boolean(report.inclusion_image_path)} /></div><div className="mt-5 grid gap-5 md:grid-cols-2"><StatusCard title="Fingerprint" value={report.fingerprint_hash ? 'Fingerprint ready' : 'Extraction pending'} /><StatusCard title="Verification history" value={`${report.verification_logs.length} recorded result(s)`} /></div></section>
+  const fields = [
+    ['Species', report.species],
+    ['Variety', report.variety],
+    ['Weight', `${report.carat_weight} ct`],
+    ['Colour', report.colour],
+    ['Cut / shape', report.cut_shape],
+    ['Dimensions', report.dimensions],
+    ['Issued', report.issue_date],
+  ]
+  return (
+    <section className="mx-auto max-w-5xl px-6 py-12">
+      <button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>
+        ← Back to registry
+      </button>
+      <div className="mt-8">
+        <p className="text-sm font-semibold tracking-[0.2em] text-amber-400">REPORT DETAIL</p>
+        <h1 className="mt-2 text-4xl font-semibold">{report.serial_number}</h1>
+        <p className="mt-2 text-stone-400">
+          Private laboratory record created {new Date(report.created_at).toLocaleDateString()}.
+        </p>
+      </div>
+      <div className="mt-9 grid gap-5 md:grid-cols-2">
+        {fields.map(([label, value]) => (
+          <article className="rounded-xl border border-stone-800 bg-stone-900/30 p-5" key={label}>
+            <p className="text-xs uppercase tracking-wider text-stone-500">{label}</p>
+            <p className="mt-2 font-medium text-stone-100">{value}</p>
+          </article>
+        ))}
+      </div>
+      <article className="mt-5 rounded-xl border border-stone-800 bg-stone-900/30 p-5">
+        <p className="text-xs uppercase tracking-wider text-stone-500">Observations</p>
+        <p className="mt-2 whitespace-pre-wrap leading-7 text-stone-300">
+          {report.comments || 'No observations recorded.'}
+        </p>
+      </article>
+      <div className="mt-5 grid gap-5 md:grid-cols-2">
+        <ReportImagePanel
+          reportId={report.id}
+          kind="macro"
+          title="Macro image"
+          hasImage={Boolean(report.macro_image_path)}
+        />
+        <ReportImagePanel
+          reportId={report.id}
+          kind="inclusion"
+          title="Inclusion reference image"
+          hasImage={Boolean(report.inclusion_image_path)}
+        />
+      </div>
+      <div className="mt-5 grid gap-5 md:grid-cols-2">
+        <StatusCard title="Fingerprint" value={report.fingerprint_hash ? 'Fingerprint ready' : 'Extraction pending'} />
+        <StatusCard title="Verification history" value={`${report.verification_logs.length} recorded result(s)`} />
+      </div>
+    </section>
+  )
 }
-function StatusCard({ title, value }: { title: string; value: string }) { return <article className="rounded-xl border border-stone-800 p-5"><p className="text-xs uppercase tracking-wider text-stone-500">{title}</p><p className="mt-2 text-sm font-medium text-stone-200">{value}</p></article> }
+function StatusCard({ title, value }: { title: string; value: string }) {
+  return (
+    <article className="rounded-xl border border-stone-800 p-5">
+      <p className="text-xs uppercase tracking-wider text-stone-500">{title}</p>
+      <p className="mt-2 text-sm font-medium text-stone-200">{value}</p>
+    </article>
+  )
+}

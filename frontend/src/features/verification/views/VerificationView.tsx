@@ -1,1 +1,22 @@
-export function VerificationView({ onBack }: { onBack: () => void }) { return <section className="mx-auto max-w-3xl px-6 py-12"><button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>← Back to registry</button><p className="mt-8 text-sm font-semibold tracking-[0.2em] text-amber-400">VERIFICATION</p><h1 className="mt-2 text-4xl font-semibold">Compare an inclusion fingerprint</h1><p className="mt-3 leading-7 text-stone-400">The CV service is deployed and protected for internal calls. The next vertical module will add image upload, report selection, result visualisation, and verification-history persistence through the Node API.</p><div className="mt-8 rounded-xl border border-dashed border-stone-700 p-10 text-center text-stone-400"><p className="font-medium text-stone-200">Verification workspace is prepared</p><p className="mt-2 text-sm">Register a report first. Image-to-fingerprint and image comparison will be connected through authenticated backend endpoints, not directly from the browser.</p></div></section> }
+export function VerificationView({ onBack }: { onBack: () => void }) {
+  return (
+    <section className="mx-auto max-w-3xl px-6 py-12">
+      <button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>
+        ← Back to registry
+      </button>
+      <p className="mt-8 text-sm font-semibold tracking-[0.2em] text-amber-400">VERIFICATION</p>
+      <h1 className="mt-2 text-4xl font-semibold">Compare an inclusion fingerprint</h1>
+      <p className="mt-3 leading-7 text-stone-400">
+        The CV service is deployed and protected for internal calls. The next vertical module will add image upload,
+        report selection, result visualisation, and verification-history persistence through the Node API.
+      </p>
+      <div className="mt-8 rounded-xl border border-dashed border-stone-700 p-10 text-center text-stone-400">
+        <p className="font-medium text-stone-200">Verification workspace is prepared</p>
+        <p className="mt-2 text-sm">
+          Register a report first. Image-to-fingerprint and image comparison will be connected through authenticated
+          backend endpoints, not directly from the browser.
+        </p>
+      </div>
+    </section>
+  )
+}

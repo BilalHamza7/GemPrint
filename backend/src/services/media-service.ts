@@ -3,7 +3,10 @@ import { ReportRepository } from '../repositories/report-repository.js'
 import type { MediaKind } from '../models/media.js'
 
 export class MediaService {
-  constructor(private readonly reports = new ReportRepository(), private readonly media = new MediaRepository()) {}
+  constructor(
+    private readonly reports = new ReportRepository(),
+    private readonly media = new MediaRepository(),
+  ) {}
 
   async upload(laboratoryId: string, reportId: string, kind: MediaKind, file: Express.Multer.File) {
     const report = await this.reports.findForLaboratory(reportId, laboratoryId)
@@ -12,7 +15,7 @@ export class MediaService {
   }
 
   async signedUrl(laboratoryId: string, reportId: string, kind: MediaKind) {
-    const report = await this.reports.findForLaboratory(reportId, laboratoryId) as Record<string, unknown> | null
+    const report = (await this.reports.findForLaboratory(reportId, laboratoryId)) as Record<string, unknown> | null
     if (!report) return null
     const path = report[kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path']
     if (typeof path !== 'string' || !path) return { missing: true as const }

@@ -2,7 +2,63 @@ import type { AppPage } from '../../../components/AppShell'
 import { ReportTable } from '../../reports/components/ReportTable'
 import { useReports } from '../../reports/hooks/useReports'
 
-export function DashboardView({ onNavigate, onOpenReport }: { onNavigate: (page: AppPage) => void; onOpenReport: (id: string) => void }) {
+export function DashboardView({
+  onNavigate,
+  onOpenReport,
+}: {
+  onNavigate: (page: AppPage) => void
+  onOpenReport: (id: string) => void
+}) {
   const { reports, error, isLoading, reload } = useReports()
-  return <section className="mx-auto max-w-6xl px-6 py-12"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-sm font-semibold tracking-[0.2em] text-amber-400">PRIVATE REGISTRY</p><h1 className="mt-2 text-4xl font-semibold">Gemstone reports</h1><p className="mt-3 max-w-2xl text-stone-400">Each report belongs only to your laboratory account. Open a report to manage its media and future fingerprint workflow.</p></div><button className="rounded-lg bg-amber-400 px-4 py-3 font-semibold text-stone-950" onClick={() => onNavigate('register')}>Register gemstone</button></div><div className="mt-9">{isLoading && <div className="rounded-xl border border-stone-800 p-8 text-stone-400">Loading your private registry…</div>}{!isLoading && error && <div className="rounded-xl border border-red-900/70 bg-red-950/30 p-6"><p className="text-red-300">{error}</p><button className="mt-4 rounded border border-red-800 px-3 py-2 text-sm text-red-200" onClick={() => void reload()}>Try again</button></div>}{!isLoading && !error && reports.length === 0 && <div className="rounded-xl border border-dashed border-stone-700 p-10 text-center"><h2 className="text-xl font-semibold">No reports registered yet</h2><p className="mt-2 text-stone-400">Create the first private gemstone record to begin building the registry.</p><button className="mt-5 rounded bg-amber-400 px-4 py-2.5 font-semibold text-stone-950" onClick={() => onNavigate('register')}>Register first gemstone</button></div>}{!isLoading && !error && reports.length > 0 && <ReportTable reports={reports} onOpen={onOpenReport} />}</div></section>
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-12">
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="text-sm font-semibold tracking-[0.2em] text-amber-400">PRIVATE REGISTRY</p>
+          <h1 className="mt-2 text-4xl font-semibold">Gemstone reports</h1>
+          <p className="mt-3 max-w-2xl text-stone-400">
+            Each report belongs only to your laboratory account. Open a report to manage its media and future
+            fingerprint workflow.
+          </p>
+        </div>
+        <button
+          className="rounded-lg bg-amber-400 px-4 py-3 font-semibold text-stone-950"
+          onClick={() => onNavigate('register')}
+        >
+          Register gemstone
+        </button>
+      </div>
+      <div className="mt-9">
+        {isLoading && (
+          <div className="rounded-xl border border-stone-800 p-8 text-stone-400">Loading your private registry…</div>
+        )}
+        {!isLoading && error && (
+          <div className="rounded-xl border border-red-900/70 bg-red-950/30 p-6">
+            <p className="text-red-300">{error}</p>
+            <button
+              className="mt-4 rounded border border-red-800 px-3 py-2 text-sm text-red-200"
+              onClick={() => void reload()}
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        {!isLoading && !error && reports.length === 0 && (
+          <div className="rounded-xl border border-dashed border-stone-700 p-10 text-center">
+            <h2 className="text-xl font-semibold">No reports registered yet</h2>
+            <p className="mt-2 text-stone-400">
+              Create the first private gemstone record to begin building the registry.
+            </p>
+            <button
+              className="mt-5 rounded bg-amber-400 px-4 py-2.5 font-semibold text-stone-950"
+              onClick={() => onNavigate('register')}
+            >
+              Register first gemstone
+            </button>
+          </div>
+        )}
+        {!isLoading && !error && reports.length > 0 && <ReportTable reports={reports} onOpen={onOpenReport} />}
+      </div>
+    </section>
+  )
 }

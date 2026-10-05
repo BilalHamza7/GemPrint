@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,6 +22,7 @@
     "@tailwindcss/vite": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "prettier": "^3.9.9",
     "tailwindcss": "latest",
     "typescript": "latest"
   }

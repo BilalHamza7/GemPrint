@@ -19,15 +19,46 @@ export function validateCreateReport(body: unknown): CreateReportInput | null {
   const dimensions = text(value.dimensions)
   const caratWeight = value.caratWeight
   const comments = text(value.comments, false)
-  if (!serialNumber || !issueDate || !species || !variety || !colour || !cutShape || !dimensions || typeof caratWeight !== 'number' || !Number.isFinite(caratWeight) || caratWeight <= 0) return null
-  return { serialNumber, issueDate, species, variety, caratWeight, colour, cutShape, dimensions, comments: comments || undefined }
+  if (
+    !serialNumber ||
+    !issueDate ||
+    !species ||
+    !variety ||
+    !colour ||
+    !cutShape ||
+    !dimensions ||
+    typeof caratWeight !== 'number' ||
+    !Number.isFinite(caratWeight) ||
+    caratWeight <= 0
+  )
+    return null
+  return {
+    serialNumber,
+    issueDate,
+    species,
+    variety,
+    caratWeight,
+    colour,
+    cutShape,
+    dimensions,
+    comments: comments || undefined,
+  }
 }
 
 export function validateUpdateReport(body: unknown): Partial<CreateReportInput> | null {
   if (!body || typeof body !== 'object') return null
   const value = body as Record<string, unknown>
   const result: Partial<CreateReportInput> = {}
-  const fields = ['serialNumber', 'issueDate', 'species', 'variety', 'colour', 'cutShape', 'dimensions', 'comments'] as const
+  const fields = [
+    'serialNumber',
+    'issueDate',
+    'species',
+    'variety',
+    'colour',
+    'cutShape',
+    'dimensions',
+    'comments',
+  ] as const
   for (const field of fields) {
     if (value[field] === undefined) continue
     const parsed = text(value[field], field !== 'comments')
@@ -35,7 +66,8 @@ export function validateUpdateReport(body: unknown): Partial<CreateReportInput> 
     result[field] = parsed || undefined
   }
   if (value.caratWeight !== undefined) {
-    if (typeof value.caratWeight !== 'number' || !Number.isFinite(value.caratWeight) || value.caratWeight <= 0) return null
+    if (typeof value.caratWeight !== 'number' || !Number.isFinite(value.caratWeight) || value.caratWeight <= 0)
+      return null
     result.caratWeight = value.caratWeight
   }
   return Object.keys(result).length ? result : null
@@ -44,6 +76,21 @@ export function validateUpdateReport(body: unknown): Partial<CreateReportInput> 
 export function validateFingerprint(body: unknown): FingerprintInput | null {
   if (!body || typeof body !== 'object') return null
   const value = body as Record<string, unknown>
-  if (typeof value.keypointCount !== 'number' || !Number.isInteger(value.keypointCount) || value.keypointCount < 0 || typeof value.fingerprintHash !== 'string' || !value.fingerprintHash.trim()) return null
-  return { keypointCount: value.keypointCount, fingerprintHash: value.fingerprintHash.trim(), keypoints: Array.isArray(value.keypoints) ? value.keypoints : [], metadata: value.metadata && typeof value.metadata === 'object' && !Array.isArray(value.metadata) ? value.metadata as Record<string, unknown> : {} }
+  if (
+    typeof value.keypointCount !== 'number' ||
+    !Number.isInteger(value.keypointCount) ||
+    value.keypointCount < 0 ||
+    typeof value.fingerprintHash !== 'string' ||
+    !value.fingerprintHash.trim()
+  )
+    return null
+  return {
+    keypointCount: value.keypointCount,
+    fingerprintHash: value.fingerprintHash.trim(),
+    keypoints: Array.isArray(value.keypoints) ? value.keypoints : [],
+    metadata:
+      value.metadata && typeof value.metadata === 'object' && !Array.isArray(value.metadata)
+        ? (value.metadata as Record<string, unknown>)
+        : {},
+  }
 }

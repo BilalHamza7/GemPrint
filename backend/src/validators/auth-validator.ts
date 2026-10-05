@@ -25,7 +25,16 @@ export function validateRegistration(body: unknown): RegisterCredentials | null 
   const legalName = optionalText(values.legalName, 180)
   const displayName = optionalText(values.displayName, 180)
   const businessEmail = validEmail(values.businessEmail ?? values.email)
-  if (!fullName || fullName.length < 2 || !legalName || legalName.length < 2 || !displayName || displayName.length < 2 || !businessEmail) return null
+  if (
+    !fullName ||
+    fullName.length < 2 ||
+    !legalName ||
+    legalName.length < 2 ||
+    !displayName ||
+    displayName.length < 2 ||
+    !businessEmail
+  )
+    return null
   const phone = optionalText(values.phone, 40)
   const jobTitle = optionalText(values.jobTitle, 100)
   const registrationNumber = optionalText(values.registrationNumber, 100)
@@ -34,6 +43,27 @@ export function validateRegistration(body: unknown): RegisterCredentials | null 
   const addressLine1 = optionalText(values.addressLine1, 240)
   const city = optionalText(values.city, 120)
   const country = optionalText(values.country, 120)
-  if ([phone, jobTitle, registrationNumber, businessPhone, website, addressLine1, city, country].some((value) => value === null)) return null
-  return { ...login, fullName, ...(phone ? { phone } : {}), ...(jobTitle ? { jobTitle } : {}), laboratory: { legalName, displayName, businessEmail, ...(registrationNumber ? { registrationNumber } : {}), ...(businessPhone ? { businessPhone } : {}), ...(website ? { website } : {}), ...(addressLine1 ? { addressLine1 } : {}), ...(city ? { city } : {}), ...(country ? { country } : {}) } }
+  if (
+    [phone, jobTitle, registrationNumber, businessPhone, website, addressLine1, city, country].some(
+      (value) => value === null,
+    )
+  )
+    return null
+  return {
+    ...login,
+    fullName,
+    ...(phone ? { phone } : {}),
+    ...(jobTitle ? { jobTitle } : {}),
+    laboratory: {
+      legalName,
+      displayName,
+      businessEmail,
+      ...(registrationNumber ? { registrationNumber } : {}),
+      ...(businessPhone ? { businessPhone } : {}),
+      ...(website ? { website } : {}),
+      ...(addressLine1 ? { addressLine1 } : {}),
+      ...(city ? { city } : {}),
+      ...(country ? { country } : {}),
+    },
+  }
 }

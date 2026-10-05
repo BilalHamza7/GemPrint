@@ -1,6 +1,13 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/require-auth.js'
-import { archiveReport, createReport, getReport, listReports, saveFingerprint, updateReport } from '../controllers/report-controller.js'
+import {
+  archiveReport,
+  createReport,
+  getReport,
+  listReports,
+  saveFingerprint,
+  updateReport,
+} from '../controllers/report-controller.js'
 import { getReportImageUrl, uploadReportImage } from '../controllers/media-controller.js'
 import { imageUpload } from '../middleware/image-upload.js'
 

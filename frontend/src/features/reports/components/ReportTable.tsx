@@ -1,5 +1,44 @@
 import type { GemstoneReport } from '../types/report'
 
 export function ReportTable({ reports, onOpen }: { reports: GemstoneReport[]; onOpen: (id: string) => void }) {
-  return <div className="overflow-x-auto rounded-xl border border-stone-800"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-stone-900 text-xs uppercase tracking-wider text-stone-500"><tr><th className="px-5 py-4">Report</th><th className="px-5 py-4">Stone</th><th className="px-5 py-4">Weight</th><th className="px-5 py-4">Fingerprint</th><th className="px-5 py-4">Created</th></tr></thead><tbody className="divide-y divide-stone-800 bg-stone-950/40">{reports.map((report) => <tr key={report.id} className="cursor-pointer text-stone-300 hover:bg-stone-900/60" onClick={() => onOpen(report.id)}><td className="px-5 py-4 font-medium text-stone-100">{report.serial_number}<span className="mt-1 block text-xs font-normal text-stone-500">Issued {report.issue_date}</span></td><td className="px-5 py-4">{report.species}<span className="mt-1 block text-xs text-stone-500">{report.variety}</span></td><td className="px-5 py-4">{report.carat_weight} ct</td><td className="px-5 py-4"><span className={report.fingerprint_hash ? 'text-emerald-300' : 'text-stone-500'}>{report.fingerprint_hash ? 'Ready' : 'Not extracted'}</span></td><td className="px-5 py-4 text-stone-400">{new Date(report.created_at).toLocaleDateString()}</td></tr>)}</tbody></table></div>
+  return (
+    <div className="overflow-x-auto rounded-xl border border-stone-800">
+      <table className="w-full min-w-[620px] text-left text-sm">
+        <thead className="bg-stone-900 text-xs uppercase tracking-wider text-stone-500">
+          <tr>
+            <th className="px-5 py-4">Report</th>
+            <th className="px-5 py-4">Stone</th>
+            <th className="px-5 py-4">Weight</th>
+            <th className="px-5 py-4">Fingerprint</th>
+            <th className="px-5 py-4">Created</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-stone-800 bg-stone-950/40">
+          {reports.map((report) => (
+            <tr
+              key={report.id}
+              className="cursor-pointer text-stone-300 hover:bg-stone-900/60"
+              onClick={() => onOpen(report.id)}
+            >
+              <td className="px-5 py-4 font-medium text-stone-100">
+                {report.serial_number}
+                <span className="mt-1 block text-xs font-normal text-stone-500">Issued {report.issue_date}</span>
+              </td>
+              <td className="px-5 py-4">
+                {report.species}
+                <span className="mt-1 block text-xs text-stone-500">{report.variety}</span>
+              </td>
+              <td className="px-5 py-4">{report.carat_weight} ct</td>
+              <td className="px-5 py-4">
+                <span className={report.fingerprint_hash ? 'text-emerald-300' : 'text-stone-500'}>
+                  {report.fingerprint_hash ? 'Ready' : 'Not extracted'}
+                </span>
+              </td>
+              <td className="px-5 py-4 text-stone-400">{new Date(report.created_at).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }

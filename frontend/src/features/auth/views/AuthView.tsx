@@ -1,9 +1,139 @@
 import type { SessionUser } from '../../../lib/api'
 import { useAuthForm } from '../hooks/useAuthForm'
 
-export function AuthView({ onAuthenticated, onBack }: { onAuthenticated: (user: SessionUser) => void; onBack: () => void }) {
+export function AuthView({
+  onAuthenticated,
+  onBack,
+}: {
+  onAuthenticated: (user: SessionUser) => void
+  onBack: () => void
+}) {
   const { mode, setMode, error, message, isSubmitting, submit } = useAuthForm(onAuthenticated)
   const isRegistering = mode === 'register'
-  const field = 'mt-1.5 w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 outline-none focus:border-amber-400'
-  return <section className="mx-auto flex min-h-screen max-w-2xl items-center px-6 py-12"><div className="w-full rounded-2xl border border-stone-800 bg-stone-900/50 p-8 shadow-2xl shadow-black/20"><button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>← Back to GemPrint</button><p className="mt-8 text-xs font-bold tracking-[0.28em] text-amber-400">GEMPRINT</p><h1 className="mt-3 text-3xl font-semibold">{isRegistering ? 'Create laboratory account' : 'Laboratory sign in'}</h1><p className="mt-2 text-sm leading-6 text-stone-400">{isRegistering ? 'Set up the laboratory workspace that will own your report registry.' : 'Sign in securely to access your laboratory workspace.'}</p><form className="mt-7 space-y-5" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget) }}>{isRegistering && <><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm text-stone-300">Full name<input required name="fullName" minLength={2} className={field} /></label><label className="block text-sm text-stone-300">Role or title<input name="jobTitle" className={field} /></label><label className="block text-sm text-stone-300">Personal phone<input name="phone" className={field} /></label></div><div className="border-t border-stone-800 pt-5"><h2 className="text-sm font-semibold text-stone-100">Laboratory details</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="block text-sm text-stone-300">Legal business name<input required name="legalName" minLength={2} className={field} /></label><label className="block text-sm text-stone-300">Laboratory display name<input required name="displayName" minLength={2} className={field} /></label><label className="block text-sm text-stone-300">Business registration no.<input name="registrationNumber" className={field} /></label><label className="block text-sm text-stone-300">Business email<input required type="email" name="businessEmail" className={field} /></label><label className="block text-sm text-stone-300">Business phone<input name="businessPhone" className={field} /></label><label className="block text-sm text-stone-300">Website<input name="website" type="url" className={field} /></label><label className="block text-sm text-stone-300 sm:col-span-2">Address<input name="addressLine1" className={field} /></label><label className="block text-sm text-stone-300">City<input name="city" className={field} /></label><label className="block text-sm text-stone-300">Country<input name="country" className={field} /></label></div></div></>}<div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm text-stone-300">Email<input required type="email" name="email" autoComplete="email" className={field} /></label><label className="block text-sm text-stone-300">Password<input required type="password" minLength={8} name="password" autoComplete={isRegistering ? 'new-password' : 'current-password'} className={field} /></label></div>{error && <p role="alert" className="rounded-lg border border-red-900/70 bg-red-950/50 p-3 text-sm text-red-300">{error}</p>}{message && <p className="rounded-lg border border-emerald-900/70 bg-emerald-950/40 p-3 text-sm text-emerald-300">{message}</p>}<button disabled={isSubmitting} className="w-full rounded-lg bg-amber-400 px-4 py-3 font-semibold text-stone-950 disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? 'Working…' : isRegistering ? 'Create account' : 'Sign in'}</button></form><button className="mt-5 text-sm text-amber-300 hover:text-amber-200" onClick={() => setMode(isRegistering ? 'sign-in' : 'register')}>{isRegistering ? 'Already registered? Sign in' : 'Need an account? Register'}</button></div></section>
+  const field =
+    'mt-1.5 w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 outline-none focus:border-amber-400'
+  return (
+    <section className="mx-auto flex min-h-screen max-w-2xl items-center px-6 py-12">
+      <div className="w-full rounded-2xl border border-stone-800 bg-stone-900/50 p-8 shadow-2xl shadow-black/20">
+        <button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>
+          ← Back to GemPrint
+        </button>
+        <p className="mt-8 text-xs font-bold tracking-[0.28em] text-amber-400">GEMPRINT</p>
+        <h1 className="mt-3 text-3xl font-semibold">
+          {isRegistering ? 'Create laboratory account' : 'Laboratory sign in'}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-stone-400">
+          {isRegistering
+            ? 'Set up the laboratory workspace that will own your report registry.'
+            : 'Sign in securely to access your laboratory workspace.'}
+        </p>
+        <form
+          className="mt-7 space-y-5"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit(event.currentTarget)
+          }}
+        >
+          {isRegistering && (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm text-stone-300">
+                  Full name
+                  <input required name="fullName" minLength={2} className={field} />
+                </label>
+                <label className="block text-sm text-stone-300">
+                  Role or title
+                  <input name="jobTitle" className={field} />
+                </label>
+                <label className="block text-sm text-stone-300">
+                  Personal phone
+                  <input name="phone" className={field} />
+                </label>
+              </div>
+              <div className="border-t border-stone-800 pt-5">
+                <h2 className="text-sm font-semibold text-stone-100">Laboratory details</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm text-stone-300">
+                    Legal business name
+                    <input required name="legalName" minLength={2} className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    Laboratory display name
+                    <input required name="displayName" minLength={2} className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    Business registration no.
+                    <input name="registrationNumber" className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    Business email
+                    <input required type="email" name="businessEmail" className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    Business phone
+                    <input name="businessPhone" className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    Website
+                    <input name="website" type="url" className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300 sm:col-span-2">
+                    Address
+                    <input name="addressLine1" className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    City
+                    <input name="city" className={field} />
+                  </label>
+                  <label className="block text-sm text-stone-300">
+                    Country
+                    <input name="country" className={field} />
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm text-stone-300">
+              Email
+              <input required type="email" name="email" autoComplete="email" className={field} />
+            </label>
+            <label className="block text-sm text-stone-300">
+              Password
+              <input
+                required
+                type="password"
+                minLength={8}
+                name="password"
+                autoComplete={isRegistering ? 'new-password' : 'current-password'}
+                className={field}
+              />
+            </label>
+          </div>
+          {error && (
+            <p role="alert" className="rounded-lg border border-red-900/70 bg-red-950/50 p-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+          {message && (
+            <p className="rounded-lg border border-emerald-900/70 bg-emerald-950/40 p-3 text-sm text-emerald-300">
+              {message}
+            </p>
+          )}
+          <button
+            disabled={isSubmitting}
+            className="w-full rounded-lg bg-amber-400 px-4 py-3 font-semibold text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSubmitting ? 'Working…' : isRegistering ? 'Create account' : 'Sign in'}
+          </button>
+        </form>
+        <button
+          className="mt-5 text-sm text-amber-300 hover:text-amber-200"
+          onClick={() => setMode(isRegistering ? 'sign-in' : 'register')}
+        >
+          {isRegistering ? 'Already registered? Sign in' : 'Need an account? Register'}
+        </button>
+      </div>
+    </section>
+  )
 }
