@@ -1,4 +1,4 @@
-import { api } from '../../../lib/supabase'
+import { api } from '../../../lib/api'
 import type { CreateReportInput, GemstoneReport, ReportDetail } from '../types/report'
 
 export async function listReports(): Promise<GemstoneReport[]> { return (await api<{ reports: GemstoneReport[] }>('/api/reports')).reports }

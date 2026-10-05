@@ -1,25 +1,44 @@
 import { useState } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { saveSession, type SessionUser } from '../../../lib/api'
+import { loginAccount, registerAccount } from '../api/authApi'
 
 export type AuthMode = 'sign-in' | 'register'
 
-export function useAuthForm(onAuthenticated: () => void) {
+export function useAuthForm(onAuthenticated: (user: SessionUser) => void) {
   const [mode, setMode] = useState<AuthMode>('sign-in')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   async function submit(form: HTMLFormElement) {
-    if (!supabase) return setError('Supabase browser authentication is not configured.')
     const fields = new FormData(form)
     const email = String(fields.get('email') ?? '').trim()
     const password = String(fields.get('password') ?? '')
     const fullName = String(fields.get('fullName') ?? '').trim()
     setError(''); setMessage(''); setIsSubmitting(true)
-    const result = mode === 'register' ? await supabase.auth.signUp({ email, password, options: { data: fullName ? { full_name: fullName } : undefined } }) : await supabase.auth.signInWithPassword({ email, password })
-    setIsSubmitting(false)
-    if (result.error) return setError(result.error.message)
-    if (mode === 'register' && !result.data.session) { setMessage('Registration received. Confirm the email sent by Supabase, then sign in.'); setMode('sign-in'); return }
-    onAuthenticated()
+    try {
+      const session = mode === 'register'
+        ? await registerAccount({
+            fullName, email, password,
+            phone: String(fields.get('phone') ?? '').trim() || undefined,
+            jobTitle: String(fields.get('jobTitle') ?? '').trim() || undefined,
+            legalName: String(fields.get('legalName') ?? '').trim(),
+            displayName: String(fields.get('displayName') ?? '').trim(),
+            registrationNumber: String(fields.get('registrationNumber') ?? '').trim() || undefined,
+            businessEmail: String(fields.get('businessEmail') ?? '').trim() || email,
+            businessPhone: String(fields.get('businessPhone') ?? '').trim() || undefined,
+            website: String(fields.get('website') ?? '').trim() || undefined,
+            addressLine1: String(fields.get('addressLine1') ?? '').trim() || undefined,
+            city: String(fields.get('city') ?? '').trim() || undefined,
+            country: String(fields.get('country') ?? '').trim() || undefined,
+          })
+        : await loginAccount(email, password)
+      saveSession(session)
+      onAuthenticated(session.user)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to continue.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
   return { mode, setMode, error, message, isSubmitting, submit }
 }

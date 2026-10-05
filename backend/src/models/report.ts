@@ -1,6 +1,7 @@
 export type GemstoneReport = {
   id: string
   user_id: string
+  laboratory_id: string
   serial_number: string
   issue_date: string
   species: string

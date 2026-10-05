@@ -12,16 +12,19 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "bcryptjs": "^3.0.3",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
     "helmet": "latest",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.4.0",
     "pino-http": "latest"
   },
   "devDependencies": {
     "@types/cors": "latest",
     "@types/express": "latest",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
     "@types/node": "latest",
     "tsx": "latest",

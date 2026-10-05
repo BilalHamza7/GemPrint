@@ -1,17 +1,20 @@
 import type { Request, Response } from 'express'
+import { env } from '../config/env.js'
 import { AuthService } from '../services/auth-service.js'
-import { validateCredentials } from '../validators/auth-validator.js'
+import { validateLogin, validateRegistration } from '../validators/auth-validator.js'
 
 const auth = new AuthService()
 
 export async function register(request: Request, response: Response) {
-  const credentials = validateCredentials(request.body, true)
-  if (!credentials) return response.status(400).json({ error: 'Invalid registration data.' })
-  try { const { data, error } = await auth.register(credentials); return error ? response.status(400).json({ error: error.message }) : response.status(201).json({ user: data.user, session: data.session }) } catch { return response.status(503).json({ error: 'Authentication service is not configured.' }) }
+  if (!env.JWT_SECRET) return response.status(503).json({ error: 'Authentication is not configured.' })
+  const credentials = validateRegistration(request.body)
+  if (!credentials) return response.status(400).json({ error: 'Provide valid account and laboratory details.' })
+  try { return response.status(201).json(await auth.register(credentials)) } catch (caught) { return response.status(400).json({ error: caught instanceof Error ? caught.message : 'Unable to create the account.' }) }
 }
 
 export async function login(request: Request, response: Response) {
-  const credentials = validateCredentials(request.body, false)
+  if (!env.JWT_SECRET) return response.status(503).json({ error: 'Authentication is not configured.' })
+  const credentials = validateLogin(request.body)
   if (!credentials) return response.status(400).json({ error: 'Invalid login data.' })
-  try { const { data, error } = await auth.login(credentials); return error ? response.status(401).json({ error: 'Invalid email or password.' }) : response.json({ user: data.user, session: data.session }) } catch { return response.status(503).json({ error: 'Authentication service is not configured.' }) }
+  try { return response.json(await auth.login(credentials)) } catch (caught) { return response.status(401).json({ error: caught instanceof Error ? caught.message : 'Invalid email or password.' }) }
 }
