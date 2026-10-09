@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/require-auth.js'
 import {
   archiveReport,
   createReport,
+  findReportBySerial,
   getReport,
   listReports,
   saveFingerprint,
@@ -15,6 +16,7 @@ import { imageUpload } from '../middleware/image-upload.js'
 export const reportsRouter = Router()
 reportsRouter.use(requireAuth)
 reportsRouter.get('/', listReports)
+reportsRouter.get('/lookup/:serialNumber', findReportBySerial)
 reportsRouter.get('/:id', getReport)
 reportsRouter.post('/', createReport)
 reportsRouter.patch('/:id', updateReport)

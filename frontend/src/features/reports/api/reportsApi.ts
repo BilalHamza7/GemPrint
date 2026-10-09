@@ -10,6 +10,13 @@ export async function createReport(input: CreateReportInput): Promise<GemstoneRe
 export async function getReport(id: string): Promise<ReportDetail> {
   return (await api<{ report: ReportDetail }>(`/api/reports/${id}`)).report
 }
+export async function findReportBySerial(serialNumber: string) {
+  return (
+    await api<{ report: Pick<GemstoneReport, 'id' | 'serial_number' | 'species' | 'variety' | 'fingerprint_hash'> }>(
+      `/api/reports/lookup/${encodeURIComponent(serialNumber)}`,
+    )
+  ).report
+}
 export async function updateReport(id: string, input: Partial<CreateReportInput>): Promise<GemstoneReport> {
   return (await api<{ report: GemstoneReport }>(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify(input) }))
     .report

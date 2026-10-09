@@ -9,6 +9,9 @@ export class ReportService {
   get(id: string, userId: string) {
     return this.reports.findForUser(id, userId)
   }
+  findBySerial(serialNumber: string, userId: string) {
+    return this.reports.findBySerialForUser(serialNumber, userId)
+  }
   create(userId: string, input: CreateReportInput) {
     return this.reports.create(userId, input)
   }

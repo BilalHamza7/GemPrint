@@ -55,7 +55,13 @@ export function App() {
     ) : page === 'detail' && selectedReportId ? (
       <ReportDetailView reportId={selectedReportId} onBack={() => navigate('dashboard')} />
     ) : page === 'verify' ? (
-      <VerificationView onBack={() => navigate('dashboard')} />
+      <VerificationView
+        onBack={() => navigate('dashboard')}
+        onOpenReport={(id) => {
+          setSelectedReportId(id)
+          navigate('detail')
+        }}
+      />
     ) : (
       <HomeView onStart={() => navigate(user ? 'dashboard' : 'auth')} />
     )

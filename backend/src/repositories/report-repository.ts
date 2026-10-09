@@ -40,6 +40,13 @@ export class ReportRepository {
         cut_shape: input.cutShape,
         dimensions: input.dimensions,
         comments: input.comments ?? null,
+        micro_image_magnification: input.microImageMagnification ?? null,
+        micro_image_lighting: input.microImageLighting ?? null,
+        micro_image_microscope: input.microImageMicroscope ?? null,
+        micro_image_device: input.microImageDevice ?? null,
+        micro_image_area_notes: input.microImageAreaNotes ?? null,
+        micro_image_captured_on: input.microImageCapturedOn ?? null,
+        micro_image_capture_notes: input.microImageCaptureNotes ?? null,
       })
       .select()
       .single()
@@ -59,6 +66,13 @@ export class ReportRepository {
       cutShape: 'cut_shape',
       dimensions: 'dimensions',
       comments: 'comments',
+      microImageMagnification: 'micro_image_magnification',
+      microImageLighting: 'micro_image_lighting',
+      microImageMicroscope: 'micro_image_microscope',
+      microImageDevice: 'micro_image_device',
+      microImageAreaNotes: 'micro_image_area_notes',
+      microImageCapturedOn: 'micro_image_captured_on',
+      microImageCaptureNotes: 'micro_image_capture_notes',
     }
     for (const [key, column] of Object.entries(mapping))
       if (key in input) columns[column] = input[key as keyof CreateReportInput] ?? null
@@ -71,6 +85,17 @@ export class ReportRepository {
       .maybeSingle()
     if (error) throw new Error(error.message)
     return data as GemstoneReport | null
+  }
+
+  async findBySerialForUser(serialNumber: string, userId: string) {
+    const { data, error } = await getSupabaseAdminClient()
+      .from('gemstone_reports')
+      .select('id, serial_number, species, variety, fingerprint_hash, inclusion_image_path')
+      .eq('user_id', userId)
+      .ilike('serial_number', serialNumber.trim())
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data
   }
 
   async setArchived(id: string, userId: string, archived: boolean) {

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { generateIdentificationReport, getIdentificationReportUrl, getReport } from '../api/reportsApi'
 import type { ReportDetail } from '../types/report'
 import { ReportImagePanel } from '../components/ReportImagePanel'
+import { ReportEditor } from '../components/ReportEditor'
 
 export function ReportDetailView({ reportId, onBack }: { reportId: string; onBack: () => void }) {
   const [report, setReport] = useState<ReportDetail | null>(null)
   const [error, setError] = useState('')
   const [isGeneratingDocument, setIsGeneratingDocument] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const loadReport = useCallback(() => {
     void getReport(reportId)
       .then(setReport)
@@ -71,6 +73,13 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
+          onClick={() => setIsEditing((editing) => !editing)}
+          className="rounded-lg border border-stone-700 px-4 py-2.5 text-sm text-stone-200 hover:border-stone-500"
+        >
+          {isEditing ? 'Close editor' : 'Edit report'}
+        </button>
+        <button
+          type="button"
           disabled={isGeneratingDocument}
           onClick={() => void generateDocument()}
           className="rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-stone-950 disabled:opacity-60"
@@ -91,6 +100,16 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
           </button>
         )}
       </div>
+      {isEditing && (
+        <ReportEditor
+          report={report}
+          onCancel={() => setIsEditing(false)}
+          onSaved={() => {
+            setIsEditing(false)
+            loadReport()
+          }}
+        />
+      )}
       <div className="mt-9 grid gap-5 md:grid-cols-2">
         {fields.map(([label, value]) => (
           <article className="rounded-xl border border-stone-800 bg-stone-900/30 p-5" key={label}>
@@ -121,6 +140,22 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
           onChanged={loadReport}
         />
       </div>
+      <article className="mt-5 rounded-xl border border-stone-800 bg-stone-900/30 p-5">
+        <p className="text-xs uppercase tracking-wider text-stone-500">Microscopic reference capture</p>
+        <p className="mt-2 text-sm leading-6 text-stone-400">
+          These capture conditions should be reproduced as closely as possible when a laboratory later verifies the
+          gemstone against its microscopic reference image.
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <CaptureField label="Magnification" value={report.micro_image_magnification} />
+          <CaptureField label="Lighting" value={report.micro_image_lighting} />
+          <CaptureField label="Microscope" value={report.micro_image_microscope} />
+          <CaptureField label="Capture device" value={report.micro_image_device} />
+          <CaptureField label="Capture date" value={report.micro_image_captured_on} />
+          <CaptureField label="Inclusion area" value={report.micro_image_area_notes} />
+        </div>
+        <CaptureField label="Capture notes" value={report.micro_image_capture_notes} className="mt-4" />
+      </article>
       <div className="mt-5 grid gap-5 md:grid-cols-2">
         <StatusCard title="Fingerprint" value={report.fingerprint_hash ? 'Fingerprint ready' : 'Extraction pending'} />
         <StatusCard title="Verification history" value={`${report.verification_logs.length} recorded result(s)`} />
@@ -128,6 +163,16 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
     </section>
   )
 }
+
+function CaptureField({ label, value, className = '' }: { label: string; value: string | null; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="text-xs uppercase tracking-wider text-stone-500">{label}</p>
+      <p className="mt-1 text-sm leading-6 text-stone-200">{value || 'Not recorded'}</p>
+    </div>
+  )
+}
+
 function StatusCard({ title, value }: { title: string; value: string }) {
   return (
     <article className="rounded-xl border border-stone-800 p-5">

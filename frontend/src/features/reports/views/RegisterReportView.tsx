@@ -19,6 +19,13 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
         cutShape: String(data.get('cutShape') ?? '').trim(),
         dimensions: String(data.get('dimensions') ?? '').trim(),
         comments: String(data.get('comments') ?? '').trim() || undefined,
+        microImageMagnification: String(data.get('microImageMagnification') ?? '').trim() || undefined,
+        microImageLighting: String(data.get('microImageLighting') ?? '').trim() || undefined,
+        microImageMicroscope: String(data.get('microImageMicroscope') ?? '').trim() || undefined,
+        microImageDevice: String(data.get('microImageDevice') ?? '').trim() || undefined,
+        microImageAreaNotes: String(data.get('microImageAreaNotes') ?? '').trim() || undefined,
+        microImageCapturedOn: String(data.get('microImageCapturedOn') ?? '') || undefined,
+        microImageCaptureNotes: String(data.get('microImageCaptureNotes') ?? '').trim() || undefined,
       })
       const mainImage = data.get('mainImage')
       const fingerprintImage = data.get('fingerprintImage')
@@ -102,6 +109,32 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
             />
           </label>
         </div>
+        <fieldset className="mt-7 border-t border-stone-800 pt-6">
+          <legend className="text-sm font-semibold tracking-[0.12em] text-amber-400">
+            MICRO IMAGE CAPTURE CONTEXT
+          </legend>
+          <p className="mt-2 text-sm leading-6 text-stone-400">
+            Record the conditions used for the fingerprint-reference image. These details help the laboratory reproduce
+            a comparable microscopic view during verification.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Input label="Magnification" name="microImageMagnification" placeholder="e.g. 40×" />
+            <Input label="Lighting method" name="microImageLighting" placeholder="e.g. darkfield LED" />
+            <Input label="Microscope" name="microImageMicroscope" placeholder="Model or type" />
+            <Input label="Capture device" name="microImageDevice" placeholder="Camera or smartphone" />
+            <Input label="Capture date" name="microImageCapturedOn" type="date" />
+            <Input label="Inclusion area / reference" name="microImageAreaNotes" placeholder="e.g. crown, 10 o'clock" />
+          </div>
+          <label className="mt-4 block text-sm text-stone-300">
+            Capture notes
+            <textarea
+              name="microImageCaptureNotes"
+              rows={3}
+              className="mt-1.5 w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 outline-none focus:border-amber-400"
+              placeholder="Focus, orientation, inclusion description, or repeat-capture guidance"
+            />
+          </label>
+        </fieldset>
         {error && (
           <p role="alert" className="mt-4 rounded-lg border border-red-900/70 bg-red-950/30 p-3 text-sm text-red-300">
             {error}
@@ -124,5 +157,29 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
         </div>
       </form>
     </section>
+  )
+}
+
+function Input({
+  label,
+  name,
+  placeholder,
+  type = 'text',
+}: {
+  label: string
+  name: string
+  placeholder?: string
+  type?: string
+}) {
+  return (
+    <label className="text-sm text-stone-300">
+      {label}
+      <input
+        name={name}
+        type={type}
+        placeholder={placeholder}
+        className="mt-1.5 w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 outline-none placeholder:text-stone-600 focus:border-amber-400"
+      />
+    </label>
   )
 }

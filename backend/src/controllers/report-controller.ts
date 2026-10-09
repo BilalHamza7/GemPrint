@@ -25,12 +25,28 @@ export async function getReport(request: Request, response: Response) {
     return unavailable(response)
   }
 }
+export async function findReportBySerial(request: Request, response: Response) {
+  const serialNumber = Array.isArray(request.params.serialNumber)
+    ? request.params.serialNumber[0]
+    : request.params.serialNumber
+  if (!serialNumber.trim()) return response.status(400).json({ error: 'Provide a report serial number.' })
+  try {
+    const report = await reports.findBySerial(serialNumber, request.user!.id)
+    return report
+      ? response.json({ report })
+      : response.status(404).json({ error: 'No report was found for that serial number.' })
+  } catch {
+    return unavailable(response)
+  }
+}
 export async function createReport(request: Request, response: Response) {
   const input = validateCreateReport(request.body)
   if (!input) return response.status(400).json({ error: 'Missing or invalid report fields.' })
   try {
     return response.status(201).json({ report: await reports.create(request.user!.id, input) })
   } catch (caught) {
+    if (caught instanceof Error && /duplicate key|unique constraint/i.test(caught.message))
+      return response.status(409).json({ error: 'This report serial number is already used by your laboratory.' })
     return response.status(400).json({ error: caught instanceof Error ? caught.message : 'Unable to create report.' })
   }
 }

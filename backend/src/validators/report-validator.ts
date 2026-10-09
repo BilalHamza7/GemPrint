@@ -19,6 +19,13 @@ export function validateCreateReport(body: unknown): CreateReportInput | null {
   const dimensions = text(value.dimensions)
   const caratWeight = value.caratWeight
   const comments = text(value.comments, false)
+  const microImageMagnification = text(value.microImageMagnification, false)
+  const microImageLighting = text(value.microImageLighting, false)
+  const microImageMicroscope = text(value.microImageMicroscope, false)
+  const microImageDevice = text(value.microImageDevice, false)
+  const microImageAreaNotes = text(value.microImageAreaNotes, false)
+  const microImageCapturedOn = text(value.microImageCapturedOn, false)
+  const microImageCaptureNotes = text(value.microImageCaptureNotes, false)
   if (
     !serialNumber ||
     !issueDate ||
@@ -42,6 +49,13 @@ export function validateCreateReport(body: unknown): CreateReportInput | null {
     cutShape,
     dimensions,
     comments: comments || undefined,
+    microImageMagnification: microImageMagnification || undefined,
+    microImageLighting: microImageLighting || undefined,
+    microImageMicroscope: microImageMicroscope || undefined,
+    microImageDevice: microImageDevice || undefined,
+    microImageAreaNotes: microImageAreaNotes || undefined,
+    microImageCapturedOn: microImageCapturedOn || undefined,
+    microImageCaptureNotes: microImageCaptureNotes || undefined,
   }
 }
 
@@ -58,10 +72,29 @@ export function validateUpdateReport(body: unknown): Partial<CreateReportInput> 
     'cutShape',
     'dimensions',
     'comments',
+    'microImageMagnification',
+    'microImageLighting',
+    'microImageMicroscope',
+    'microImageDevice',
+    'microImageAreaNotes',
+    'microImageCapturedOn',
+    'microImageCaptureNotes',
   ] as const
   for (const field of fields) {
     if (value[field] === undefined) continue
-    const parsed = text(value[field], field !== 'comments')
+    const parsed = text(
+      value[field],
+      ![
+        'comments',
+        'microImageMagnification',
+        'microImageLighting',
+        'microImageMicroscope',
+        'microImageDevice',
+        'microImageAreaNotes',
+        'microImageCapturedOn',
+        'microImageCaptureNotes',
+      ].includes(field),
+    )
     if (parsed === null) return null
     result[field] = parsed || undefined
   }

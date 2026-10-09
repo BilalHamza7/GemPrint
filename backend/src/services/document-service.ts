@@ -147,6 +147,44 @@ export class DocumentService {
           .stroke()
       })
 
+      const microImagePath = report.inclusion_image_path
+      document.fillColor('#c18b2d').fontSize(8).text('MICROSCOPIC REFERENCE', imageX, 330, {
+        width: imageWidth,
+        characterSpacing: 0.9,
+      })
+      document.rect(imageX, 348, 82, 78).fillAndStroke('#f6f3ed', '#d7d1c6')
+      if (typeof microImagePath === 'string' && microImagePath) {
+        try {
+          const image = await this.documents.downloadImage(microImagePath)
+          document.image(image, imageX + 5, 353, { fit: [72, 68], align: 'center', valign: 'center' })
+        } catch {
+          document
+            .fillColor('#777777')
+            .fontSize(7)
+            .text('Reference unavailable', imageX + 5, 383, { width: 72, align: 'center' })
+        }
+      } else {
+        document
+          .fillColor('#777777')
+          .fontSize(7)
+          .text('No reference image', imageX + 5, 383, { width: 72, align: 'center' })
+      }
+      const captureSummary = [
+        ['Magnification', report.micro_image_magnification],
+        ['Lighting', report.micro_image_lighting],
+        ['Microscope', report.micro_image_microscope],
+        ['Device', report.micro_image_device],
+      ]
+        .filter(([, value]) => typeof value === 'string' && value)
+        .map(([label, value]) => `${label}: ${value}`)
+      document
+        .fillColor('#555555')
+        .fontSize(7)
+        .text(captureSummary.length ? captureSummary.join('\n') : 'Capture context not recorded.', imageX + 92, 350, {
+          width: imageWidth - 92,
+          lineGap: 2,
+        })
+
       document.fillColor('#c18b2d').fontSize(10).text('LABORATORY OBSERVATIONS', margin, 478, { characterSpacing: 1.2 })
       document
         .moveTo(margin, 496)
