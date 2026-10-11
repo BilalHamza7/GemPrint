@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { validateCreateReport, validateUpdateReport } from './report-validator.js'
 
 const baseReport = {
-  serialNumber: 'GP-2026-001',
   issueDate: '2026-10-10',
   species: 'Natural Corundum',
   variety: 'Blue Sapphire',
@@ -13,6 +12,10 @@ const baseReport = {
 }
 
 describe('report request validation', () => {
+  it('does not require a client-provided serial number', () => {
+    expect(validateCreateReport(baseReport)).toMatchObject({ species: 'Natural Corundum' })
+  })
+
   it('accepts microscopic reference capture context during report registration', () => {
     expect(
       validateCreateReport({

@@ -24,7 +24,6 @@ export type GemstoneReport = {
 }
 
 export type CreateReportInput = {
-  serialNumber: string
   issueDate: string
   species: string
   variety: string
@@ -47,4 +46,25 @@ export type FingerprintInput = {
   fingerprintHash: string
   keypoints?: unknown[]
   metadata?: Record<string, unknown>
+  algorithmVersion?: string
+  qualityScore?: number | null
+  referenceImageSha256?: string
+  preprocessingMetadata?: Record<string, unknown>
+}
+
+export type VerificationInput = {
+  reportId: string
+  userId: string
+  verdict: 'verified' | 'not_verified' | 'inconclusive'
+  reason?: string
+  goodMatchCount?: number
+  inlierCount?: number
+  inlierRatio?: number
+  qualityScore?: number | null
+  queryImagePath: string
+  resultVisualPath?: string | null
+  queryImageSha256?: string
+  referenceImageSha256?: string
+  latencyMs?: number
+  algorithmVersion?: string
 }

@@ -21,9 +21,7 @@ function normalizeOrigin(origin: string) {
 // Extra trusted origins are deliberately opt-in so local development does not
 // weaken the deployed API's CORS policy.
 const allowedOrigins = new Set(
-  [env.FRONTEND_URL, ...env.ADDITIONAL_ALLOWED_ORIGINS.split(',')]
-    .map(normalizeOrigin)
-    .filter(Boolean),
+  [env.FRONTEND_URL, ...env.ADDITIONAL_ALLOWED_ORIGINS.split(',')].map(normalizeOrigin).filter(Boolean),
 )
 
 app.use(

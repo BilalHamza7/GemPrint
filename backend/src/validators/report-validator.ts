@@ -10,7 +10,6 @@ function text(value: unknown, required = true) {
 export function validateCreateReport(body: unknown): CreateReportInput | null {
   if (!body || typeof body !== 'object') return null
   const value = body as Record<string, unknown>
-  const serialNumber = text(value.serialNumber)
   const issueDate = text(value.issueDate)
   const species = text(value.species)
   const variety = text(value.variety)
@@ -27,7 +26,6 @@ export function validateCreateReport(body: unknown): CreateReportInput | null {
   const microImageCapturedOn = text(value.microImageCapturedOn, false)
   const microImageCaptureNotes = text(value.microImageCaptureNotes, false)
   if (
-    !serialNumber ||
     !issueDate ||
     !species ||
     !variety ||
@@ -40,7 +38,6 @@ export function validateCreateReport(body: unknown): CreateReportInput | null {
   )
     return null
   return {
-    serialNumber,
     issueDate,
     species,
     variety,
@@ -64,7 +61,6 @@ export function validateUpdateReport(body: unknown): Partial<CreateReportInput> 
   const value = body as Record<string, unknown>
   const result: Partial<CreateReportInput> = {}
   const fields = [
-    'serialNumber',
     'issueDate',
     'species',
     'variety',
@@ -124,6 +120,16 @@ export function validateFingerprint(body: unknown): FingerprintInput | null {
     metadata:
       value.metadata && typeof value.metadata === 'object' && !Array.isArray(value.metadata)
         ? (value.metadata as Record<string, unknown>)
+        : {},
+    algorithmVersion: text(value.algorithmVersion, false) || undefined,
+    qualityScore:
+      typeof value.qualityScore === 'number' && Number.isFinite(value.qualityScore) ? value.qualityScore : null,
+    referenceImageSha256: text(value.referenceImageSha256, false) || undefined,
+    preprocessingMetadata:
+      value.preprocessingMetadata &&
+      typeof value.preprocessingMetadata === 'object' &&
+      !Array.isArray(value.preprocessingMetadata)
+        ? (value.preprocessingMetadata as Record<string, unknown>)
         : {},
   }
 }

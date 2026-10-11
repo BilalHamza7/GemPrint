@@ -1,5 +1,6 @@
+import crypto from 'node:crypto'
 import { ReportRepository } from '../repositories/report-repository.js'
-import type { CreateReportInput, FingerprintInput } from '../models/report.js'
+import type { CreateReportInput, FingerprintInput, VerificationInput } from '../models/report.js'
 
 export class ReportService {
   constructor(private readonly reports = new ReportRepository()) {}
@@ -12,8 +13,18 @@ export class ReportService {
   findBySerial(serialNumber: string, userId: string) {
     return this.reports.findBySerialForUser(serialNumber, userId)
   }
-  create(userId: string, input: CreateReportInput) {
-    return this.reports.create(userId, input)
+  async create(userId: string, input: CreateReportInput) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const suffix = Array.from({ length: 5 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('')
+      const serialNumber = `GP-${suffix}`
+      try {
+        return await this.reports.create(userId, serialNumber, input)
+      } catch (error) {
+        if (!(error instanceof Error) || !/duplicate key|unique constraint/i.test(error.message)) throw error
+      }
+    }
+    throw new Error('Could not allocate a unique report serial. Please retry.')
   }
   update(id: string, userId: string, input: Partial<CreateReportInput>) {
     return this.reports.update(id, userId, input)
@@ -25,5 +36,9 @@ export class ReportService {
     const report = await this.reports.findForUser(id, userId)
     if (!report) return null
     return this.reports.saveFingerprint(id, input)
+  }
+
+  createVerificationLog(input: VerificationInput) {
+    return this.reports.createVerificationLog(input)
   }
 }

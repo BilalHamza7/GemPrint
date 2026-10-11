@@ -41,3 +41,25 @@ export async function generateIdentificationReport(id: string) {
 export async function getIdentificationReportUrl(id: string) {
   return api<{ signedUrl: string }>(`/api/reports/${id}/documents/identification-report`)
 }
+
+export type VerificationOutcome = {
+  result: {
+    verdict: 'verified' | 'not_verified' | 'inconclusive'
+    reason?: string
+    good_match_count?: number
+    inlier_count?: number
+    inlier_ratio?: number
+    confidence_score?: number
+    quality_score?: number
+    latency_ms: number
+  }
+  log: { id: string; verified_at: string }
+}
+
+export async function verifyReport(id: string, file: File): Promise<VerificationOutcome> {
+  const body = new FormData()
+  body.append('image', file)
+  return (
+    await api<{ verification: VerificationOutcome }>(`/api/reports/${id}/verifications`, { method: 'POST', body })
+  ).verification
+}

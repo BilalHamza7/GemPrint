@@ -1,17 +1,35 @@
 import { MediaRepository } from '../repositories/media-repository.js'
 import { ReportRepository } from '../repositories/report-repository.js'
 import type { MediaKind } from '../models/media.js'
+import { CvService } from './cv-service.js'
 
 export class MediaService {
   constructor(
     private readonly reports = new ReportRepository(),
     private readonly media = new MediaRepository(),
+    private readonly cv = new CvService(),
   ) {}
 
   async upload(userId: string, reportId: string, kind: MediaKind, file: Express.Multer.File) {
     const report = await this.reports.findForUser(reportId, userId)
     if (!report) return null
-    return this.media.uploadReportImage({ userId, reportId, kind, file })
+    const uploaded = await this.media.uploadReportImage({ userId, reportId, kind, file })
+    if (kind === 'inclusion') {
+      const extraction = await this.cv.extractReference(file.buffer, file.mimetype)
+      if (extraction.quality !== 'acceptable')
+        throw new Error('The microscopic reference image has insufficient visible features. Upload a clearer image.')
+      await this.reports.saveFingerprint(reportId, {
+        keypointCount: extraction.keypoint_count,
+        fingerprintHash: extraction.fingerprint_hash,
+        keypoints: extraction.keypoints,
+        metadata: { latency_ms: extraction.latency_ms },
+        algorithmVersion: extraction.algorithm_version,
+        qualityScore: extraction.quality_score,
+        referenceImageSha256: extraction.reference_image_sha256,
+        preprocessingMetadata: extraction.preprocessing_metadata,
+      })
+    }
+    return uploaded
   }
 
   async signedUrl(userId: string, reportId: string, kind: MediaKind) {

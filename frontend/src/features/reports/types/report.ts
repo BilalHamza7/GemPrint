@@ -22,7 +22,6 @@ export type GemstoneReport = {
   created_at: string
 }
 export type CreateReportInput = {
-  serialNumber: string
   issueDate: string
   species: string
   variety: string

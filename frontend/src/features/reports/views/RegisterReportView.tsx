@@ -10,7 +10,6 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
     setIsSubmitting(true)
     try {
       const report = await createReport({
-        serialNumber: String(data.get('serialNumber') ?? '').trim(),
         issueDate: String(data.get('issueDate') ?? ''),
         species: String(data.get('species') ?? '').trim(),
         variety: String(data.get('variety') ?? '').trim(),
@@ -30,8 +29,9 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
       const mainImage = data.get('mainImage')
       const fingerprintImage = data.get('fingerprintImage')
       if (mainImage instanceof File && mainImage.size > 0) await uploadReportImage(report.id, 'macro', mainImage)
-      if (fingerprintImage instanceof File && fingerprintImage.size > 0)
-        await uploadReportImage(report.id, 'inclusion', fingerprintImage)
+      if (!(fingerprintImage instanceof File) || fingerprintImage.size === 0)
+        throw new Error('A microscopic fingerprint reference image is required for enrollment.')
+      await uploadReportImage(report.id, 'inclusion', fingerprintImage)
       onComplete()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The report could not be saved.')
@@ -40,7 +40,6 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
     }
   }
   const fields = [
-    ['serialNumber', 'Report serial', 'text'],
     ['issueDate', 'Issue date', 'date'],
     ['species', 'Species', 'text'],
     ['variety', 'Variety', 'text'],
@@ -57,7 +56,8 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
       <p className="mt-8 text-sm font-semibold tracking-[0.2em] text-amber-400">REPORT REGISTRATION</p>
       <h1 className="mt-2 text-4xl font-semibold">New gemstone report</h1>
       <p className="mt-3 text-stone-400">
-        Register the gemstone and optionally add its commercial image and fingerprint reference image in one workflow.
+        Register the gemstone with a system-issued serial. A microscopic fingerprint reference is required; the
+        commercial report image remains optional.
       </p>
       <form
         className="mt-8 rounded-xl border border-stone-800 bg-stone-900/30 p-6"
@@ -100,11 +100,12 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
             />
           </label>
           <label className="block text-sm text-stone-300">
-            Fingerprint reference image
+            Microscopic fingerprint reference image
             <input
               name="fingerprintImage"
               type="file"
               accept="image/jpeg,image/png"
+              required
               className="mt-1.5 block w-full text-sm text-stone-400 file:mr-3 file:rounded-md file:border-0 file:bg-stone-800 file:px-3 file:py-2 file:text-stone-200"
             />
           </label>
@@ -114,8 +115,8 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
             MICRO IMAGE CAPTURE CONTEXT
           </legend>
           <p className="mt-2 text-sm leading-6 text-stone-400">
-            Record the conditions used for the fingerprint-reference image. These details help the laboratory reproduce
-            a comparable microscopic view during verification.
+            Record the conditions used for the required fingerprint-reference image. These details help the laboratory
+            reproduce a comparable microscopic view during verification.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Input label="Magnification" name="microImageMagnification" placeholder="e.g. 40×" />

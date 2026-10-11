@@ -16,7 +16,6 @@ export function ReportEditor({ report, onSaved, onCancel }: ReportEditorProps) {
   async function submit(form: HTMLFormElement) {
     const data = new FormData(form)
     const input: CreateReportInput = {
-      serialNumber: value(data, 'serialNumber'),
       issueDate: value(data, 'issueDate'),
       species: value(data, 'species'),
       variety: value(data, 'variety'),
@@ -65,7 +64,6 @@ export function ReportEditor({ report, onSaved, onCancel }: ReportEditorProps) {
         </button>
       </div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Field label="Report serial" name="serialNumber" defaultValue={report.serial_number} required />
         <Field label="Issue date" name="issueDate" type="date" defaultValue={report.issue_date} required />
         <Field label="Species" name="species" defaultValue={report.species} required />
         <Field label="Variety" name="variety" defaultValue={report.variety} required />

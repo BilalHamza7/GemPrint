@@ -6,6 +6,33 @@ const BUCKET = 'gem_print_media'
 const extensionByMimeType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png' }
 
 export class MediaRepository {
+  async download(path: string) {
+    const { data, error } = await getSupabaseAdminClient().storage.from(BUCKET).download(path)
+    if (error || !data) throw new Error(error?.message ?? 'Could not load the stored microscopic reference image.')
+    return Buffer.from(await data.arrayBuffer())
+  }
+
+  contentTypeForPath(path: string) {
+    return path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'
+  }
+
+  async uploadVerificationArtifact(input: {
+    userId: string
+    reportId: string
+    kind: 'query' | 'match-proof'
+    bytes: Buffer
+    contentType: string
+  }) {
+    const extension = extensionByMimeType[input.contentType]
+    if (!extension) throw new Error('Unsupported verification image type.')
+    const path = `${input.userId}/reports/${input.reportId}/verifications/${crypto.randomUUID()}-${input.kind}.${extension}`
+    const { error } = await getSupabaseAdminClient()
+      .storage.from(BUCKET)
+      .upload(path, input.bytes, { contentType: input.contentType, upsert: false })
+    if (error) throw new Error(error.message)
+    return path
+  }
+
   async uploadReportImage(input: { userId: string; reportId: string; kind: MediaKind; file: Express.Multer.File }) {
     const extension = extensionByMimeType[input.file.mimetype]
     if (!extension) throw new Error('Only JPEG and PNG images are supported.')

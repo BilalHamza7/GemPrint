@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import { getSupabaseAdminClient } from '../config/supabase.js'
-import type { CreateReportInput, FingerprintInput, GemstoneReport } from '../models/report.js'
+import type { CreateReportInput, FingerprintInput, GemstoneReport, VerificationInput } from '../models/report.js'
 
 export class ReportRepository {
   async listForUser(userId: string, includeArchived = false) {
@@ -26,12 +26,12 @@ export class ReportRepository {
     return data
   }
 
-  async create(userId: string, input: CreateReportInput) {
+  async create(userId: string, serialNumber: string, input: CreateReportInput) {
     const { data, error } = await getSupabaseAdminClient()
       .from('gemstone_reports')
       .insert({
         user_id: userId,
-        serial_number: input.serialNumber,
+        serial_number: serialNumber,
         issue_date: input.issueDate,
         species: input.species,
         variety: input.variety,
@@ -57,7 +57,6 @@ export class ReportRepository {
   async update(id: string, userId: string, input: Partial<CreateReportInput>) {
     const columns: Record<string, unknown> = {}
     const mapping: Record<string, string> = {
-      serialNumber: 'serial_number',
       issueDate: 'issue_date',
       caratWeight: 'carat_weight',
       species: 'species',
@@ -130,6 +129,10 @@ export class ReportRepository {
           keypoint_count: input.keypointCount,
           keypoint_metadata_json: input.keypoints ?? [],
           fingerprint_metadata_json: input.metadata ?? {},
+          algorithm_version: input.algorithmVersion ?? 'sift-clahe-v1',
+          quality_score: input.qualityScore ?? null,
+          reference_image_sha256: input.referenceImageSha256 ?? null,
+          preprocessing_metadata_json: input.preprocessingMetadata ?? {},
         },
         { onConflict: 'gemstone_report_id' },
       )
@@ -141,6 +144,31 @@ export class ReportRepository {
       .update({ fingerprint_hash: input.fingerprintHash })
       .eq('id', reportId)
     if (updateError) throw new Error(updateError.message)
+    return data
+  }
+
+  async createVerificationLog(input: VerificationInput) {
+    const { data, error } = await getSupabaseAdminClient()
+      .from('verification_logs')
+      .insert({
+        user_id: input.userId,
+        matched_gemstone_report_id: input.reportId,
+        verdict: input.verdict,
+        reason: input.reason ?? null,
+        good_match_count: input.goodMatchCount ?? null,
+        inlier_count: input.inlierCount ?? null,
+        inlier_ratio: input.inlierRatio ?? null,
+        quality_score: input.qualityScore ?? null,
+        query_image_path: input.queryImagePath,
+        result_visual_path: input.resultVisualPath ?? null,
+        query_image_sha256: input.queryImageSha256 ?? null,
+        reference_image_sha256: input.referenceImageSha256 ?? null,
+        latency_ms: input.latencyMs ?? null,
+        algorithm_version: input.algorithmVersion ?? 'sift-clahe-v1',
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
     return data
   }
 }

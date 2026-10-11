@@ -12,6 +12,7 @@ import {
 import { deleteReportImage, getReportImageUrl, uploadReportImage } from '../controllers/media-controller.js'
 import { generateIdentificationReport, getIdentificationReportUrl } from '../controllers/document-controller.js'
 import { imageUpload } from '../middleware/image-upload.js'
+import { verifyReport } from '../controllers/verification-controller.js'
 
 export const reportsRouter = Router()
 reportsRouter.use(requireAuth)
@@ -23,6 +24,7 @@ reportsRouter.patch('/:id', updateReport)
 reportsRouter.post('/:id/archive', archiveReport)
 reportsRouter.post('/:id/restore', archiveReport)
 reportsRouter.post('/:id/fingerprint', saveFingerprint)
+reportsRouter.post('/:id/verifications', imageUpload.single('image'), verifyReport)
 reportsRouter.post('/:id/media/:kind', imageUpload.single('image'), uploadReportImage)
 reportsRouter.get('/:id/media/:kind', getReportImageUrl)
 reportsRouter.delete('/:id/media/:kind', deleteReportImage)
