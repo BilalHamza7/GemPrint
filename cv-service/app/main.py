@@ -140,12 +140,13 @@ def compare_features(
     query_keypoints: list[cv2.KeyPoint],
     query_descriptors: np.ndarray | None,
     reference_keypoints: list[cv2.KeyPoint],
-    reference_descriptors: np.ndarray,
+    reference_descriptors: np.ndarray | None,
 ) -> tuple[dict[str, float | int | str], list[cv2.DMatch], np.ndarray | None]:
     """Apply the production FLANN and RANSAC decision rule without changing it."""
     matching_started = time.perf_counter()
     if (
         query_descriptors is None
+        or reference_descriptors is None
         or len(reference_descriptors) < MINIMUM_KEYPOINTS
         or len(query_keypoints) < MINIMUM_KEYPOINTS
         or len(reference_keypoints) < MINIMUM_KEYPOINTS
