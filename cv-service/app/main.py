@@ -14,6 +14,11 @@ ALGORITHM_VERSION = 'sift-clahe-v1'
 MINIMUM_KEYPOINTS = 10
 MINIMUM_INLIERS = 10
 MINIMUM_INLIER_RATIO = 0.5
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_PROCESSING_DIMENSION = 2048
+
+# A single worker/thread avoids OpenCV allocating extra working memory on Render's 512 MB service.
+cv2.setNumThreads(1)
 
 app = FastAPI(title='GemPrint CV Engine', version='0.1.0', docs_url=None, redoc_url=None)
 
@@ -27,7 +32,19 @@ def decode_image(raw: bytes, mode: int = cv2.IMREAD_GRAYSCALE) -> np.ndarray:
     image = cv2.imdecode(np.frombuffer(raw, np.uint8), mode)
     if image is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unreadable image.')
-    return image
+    height, width = image.shape[:2]
+    largest_dimension = max(height, width)
+    if largest_dimension <= MAX_PROCESSING_DIMENSION:
+        return image
+    scale = MAX_PROCESSING_DIMENSION / largest_dimension
+    return cv2.resize(image, (round(width * scale), round(height * scale)), interpolation=cv2.INTER_AREA)
+
+
+async def read_image_upload(upload: UploadFile) -> bytes:
+    raw = await upload.read()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail='Image exceeds the 8 MB upload limit.')
+    return raw
 
 
 def preprocess(image: np.ndarray) -> np.ndarray:
@@ -134,7 +151,7 @@ def health() -> dict[str, str]:
 @app.post('/extract-fingerprint', dependencies=[Depends(require_internal_key)])
 async def extract_fingerprint(image: UploadFile = File(...)) -> dict:
     started = time.perf_counter()
-    raw = await image.read()
+    raw = await read_image_upload(image)
     _, keypoints, descriptors = extract_features(raw)
     points = metadata_for(keypoints)
     fingerprint = hashlib.sha256(
@@ -154,6 +171,7 @@ async def extract_fingerprint(image: UploadFile = File(...)) -> dict:
             'clahe_clip_limit': 2.0,
             'clahe_tile_grid': [8, 8],
             'sift_nfeatures': 1500,
+            'max_processing_dimension': MAX_PROCESSING_DIMENSION,
         },
         'algorithm_version': ALGORITHM_VERSION,
         'descriptor_npy_base64': serialize_descriptors(descriptors),
@@ -168,8 +186,8 @@ async def verify_fingerprint(
     reference_keypoints_json: str = Form(...),
 ) -> dict:
     started = time.perf_counter()
-    query_raw = await query.read()
-    reference_raw = await reference.read()
+    query_raw = await read_image_upload(query)
+    reference_raw = await read_image_upload(reference)
     query_image, query_keypoints, query_descriptors = extract_features(query_raw)
     reference_image = decode_image(reference_raw)
     reference_keypoints = restore_keypoints(reference_keypoints_json)
