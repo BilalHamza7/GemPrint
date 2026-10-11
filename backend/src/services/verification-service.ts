@@ -67,6 +67,7 @@ export class VerificationService {
           contentType: 'image/png',
         })
       : null
+    const matchProofUrl = resultVisualPath ? await this.media.createSignedUrl(resultVisualPath) : undefined
     const log = await this.reportService.createVerificationLog({
       reportId,
       userId,
@@ -85,6 +86,13 @@ export class VerificationService {
       latencyMs: Math.round(result.latency_ms),
       algorithmVersion: result.algorithm_version,
     })
-    return { result: { ...result, match_proof_base64: undefined }, log }
+    return {
+      result: {
+        ...result,
+        match_proof_base64: undefined,
+        match_proof_url: matchProofUrl,
+      },
+      log,
+    }
   }
 }

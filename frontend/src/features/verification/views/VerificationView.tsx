@@ -181,13 +181,36 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
             </button>
           </article>
         )}
-        {outcome && <VerificationResult outcome={outcome} />}
+        {outcome && report && (
+          <VerificationResultModal
+            outcome={outcome}
+            report={report}
+            referenceImageUrl={referenceImageUrl}
+            queryRoiPreview={queryRoiPreview}
+            onClose={() => setOutcome(null)}
+          />
+        )}
       </div>
     </section>
   )
 }
 
-function VerificationResult({ outcome }: { outcome: VerificationOutcome }) {
+type VerifiedReport = NonNullable<Awaited<ReturnType<typeof findReportBySerial>>>
+
+/** Presents a completed comparison in language suitable for laboratory staff and their customer. */
+function VerificationResultModal({
+  outcome,
+  report,
+  referenceImageUrl,
+  queryRoiPreview,
+  onClose,
+}: {
+  outcome: VerificationOutcome
+  report: VerifiedReport
+  referenceImageUrl: string
+  queryRoiPreview: string | null
+  onClose: () => void
+}) {
   const { result } = outcome
   const tone =
     result.verdict === 'verified'
@@ -195,31 +218,132 @@ function VerificationResult({ outcome }: { outcome: VerificationOutcome }) {
       : result.verdict === 'not_verified'
         ? 'border-red-800 bg-red-950/30 text-red-200'
         : 'border-amber-700 bg-amber-950/30 text-amber-200'
+
+  const verdictTitle =
+    result.verdict === 'verified'
+      ? 'Fingerprint verified'
+      : result.verdict === 'not_verified'
+        ? 'Fingerprint not verified'
+        : 'Verification inconclusive'
+  const customerMessage =
+    result.verdict === 'verified'
+      ? 'The submitted microscopic image is consistent with the enrolled fingerprint for this gemstone.'
+      : result.verdict === 'not_verified'
+        ? 'The submitted microscopic image did not provide enough corresponding features to confirm this gemstone.'
+        : 'A reliable decision could not be made from this image. Capture a clearer microscopic image and try again.'
+
   return (
-    <section className={`mt-5 rounded-lg border p-5 ${tone}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider">Verification result</p>
-      <h3 className="mt-2 text-xl font-semibold">{result.verdict.replace('_', ' ')}</h3>
-      <p className="mt-2 text-sm">
-        {result.reason ?? 'The result and supporting metrics are recorded in the private verification audit log.'}
-      </p>
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        <Metric label="Good matches" value={result.good_match_count} />
-        <Metric label="RANSAC inliers" value={result.inlier_count} />
-        <Metric
-          label="Inlier ratio"
-          value={result.inlier_ratio === undefined ? undefined : `${(result.inlier_ratio * 100).toFixed(1)}%`}
-        />
-        <Metric
-          label="Confidence"
-          value={result.confidence_score === undefined ? undefined : `${result.confidence_score.toFixed(1)}%`}
-        />
-        <Metric
-          label="Image quality"
-          value={result.quality_score === undefined ? undefined : `${result.quality_score.toFixed(1)}%`}
-        />
-        <Metric label="Processing time" value={`${result.latency_ms} ms`} />
-      </dl>
-    </section>
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/85 p-4 backdrop-blur-sm sm:p-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="verification-result-title"
+    >
+      <div className="mx-auto min-h-full max-w-6xl py-4 sm:py-8">
+        <section className="overflow-hidden rounded-2xl border border-stone-700 bg-stone-950 shadow-2xl">
+          <header className="flex items-start justify-between gap-4 border-b border-stone-800 p-5 sm:p-7">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">GemPrint verification</p>
+              <h2 id="verification-result-title" className="mt-2 text-2xl font-semibold text-stone-100 sm:text-3xl">
+                {verdictTitle}
+              </h2>
+              <p className="mt-2 text-sm text-stone-400">
+                {report.serial_number} · {report.species} · {report.variety}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-stone-700 px-3 py-2 text-sm font-medium text-stone-200 hover:border-stone-400"
+            >
+              Close
+            </button>
+          </header>
+
+          <div className="p-5 sm:p-7">
+            <section className={`rounded-xl border p-5 ${tone}`}>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em]">Final verdict</p>
+              <p className="mt-2 text-xl font-semibold sm:text-2xl">{customerMessage}</p>
+              {result.reason && <p className="mt-3 text-sm leading-6 text-stone-200">{result.reason}</p>}
+            </section>
+
+            <section className="mt-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-stone-100">Microscopic comparison</h3>
+                  <p className="mt-1 text-sm text-stone-400">
+                    The enrolled and submitted fingerprint regions used for this comparison.
+                  </p>
+                </div>
+                {result.match_proof_url && (
+                  <a
+                    href={result.match_proof_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-amber-500/70 px-3 py-2 text-sm font-semibold text-amber-200 hover:border-amber-300"
+                  >
+                    Open match proof
+                  </a>
+                )}
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <EvidenceImage label="Enrolled fingerprint region" src={referenceImageUrl} />
+                <EvidenceImage label="Submitted fingerprint region" src={queryRoiPreview} />
+              </div>
+              {result.match_proof_url && (
+                <figure className="mt-5 rounded-xl border border-stone-700 bg-stone-900/40 p-3">
+                  <img
+                    src={result.match_proof_url}
+                    alt="SIFT feature correspondences retained by RANSAC between the query and enrolled fingerprint regions"
+                    className="max-h-[34rem] w-full rounded-lg object-contain"
+                  />
+                  <figcaption className="mt-3 text-sm leading-6 text-stone-400">
+                    Match proof: connecting lines show SIFT feature correspondences retained by RANSAC geometric
+                    verification.
+                  </figcaption>
+                </figure>
+              )}
+            </section>
+
+            <details className="mt-6 rounded-xl border border-stone-700 bg-stone-900/30 p-4">
+              <summary className="cursor-pointer font-semibold text-stone-200">Technical evidence</summary>
+              <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+                <Metric label="Good matches" value={result.good_match_count} />
+                <Metric label="RANSAC inliers" value={result.inlier_count} />
+                <Metric
+                  label="Inlier ratio"
+                  value={result.inlier_ratio === undefined ? undefined : `${(result.inlier_ratio * 100).toFixed(1)}%`}
+                />
+                <Metric
+                  label="Confidence"
+                  value={result.confidence_score === undefined ? undefined : `${result.confidence_score.toFixed(1)}%`}
+                />
+                <Metric
+                  label="Image quality"
+                  value={result.quality_score === undefined ? undefined : `${result.quality_score.toFixed(1)}%`}
+                />
+                <Metric label="Processing time" value={`${result.latency_ms} ms`} />
+              </dl>
+            </details>
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function EvidenceImage({ label, src }: { label: string; src: string | null }) {
+  return (
+    <figure className="rounded-xl border border-stone-700 bg-stone-900/30 p-3">
+      <figcaption className="mb-3 text-sm font-semibold text-stone-200">{label}</figcaption>
+      {src ? (
+        <img className="aspect-[4/3] w-full rounded-lg bg-black object-contain" src={src} alt={label} />
+      ) : (
+        <div className="flex aspect-[4/3] items-center justify-center rounded-lg bg-stone-950 p-4 text-center text-sm text-stone-500">
+          Image preview unavailable for this result.
+        </div>
+      )}
+    </figure>
   )
 }
 

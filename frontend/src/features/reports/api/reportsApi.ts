@@ -68,6 +68,7 @@ export type VerificationOutcome = {
     confidence_score?: number
     quality_score?: number
     latency_ms: number
+    match_proof_url?: string
   }
   log: { id: string; verified_at: string }
 }
