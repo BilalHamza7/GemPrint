@@ -11,6 +11,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
   const [serialNumber, setSerialNumber] = useState('')
   const [queryImage, setQueryImage] = useState<File | null>(null)
   const [queryFrame, setQueryFrame] = useState<MicroscopicImageFrame | null>(null)
+  const [queryRoiPreview, setQueryRoiPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
@@ -24,6 +25,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
     setError('')
     setReport(null)
     setReferenceImageUrl('')
+    setQueryRoiPreview(null)
     setOutcome(null)
     setIsSearching(true)
     try {
@@ -120,6 +122,19 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
                         The enrolled reference image could not be loaded. Refresh the report search and try again.
                       </p>
                     )}
+                    {queryRoiPreview && (
+                      <>
+                        <p className="mt-5 text-sm font-semibold text-stone-100">Selected query region</p>
+                        <p className="mt-1 text-sm leading-6 text-stone-400">
+                          This browser preview represents the same 1280 × 960 region the server will process.
+                        </p>
+                        <img
+                          className="mt-3 aspect-[4/3] w-full rounded-lg border border-emerald-800 object-contain"
+                          src={queryRoiPreview}
+                          alt="Selected microscopic query region"
+                        />
+                      </>
+                    )}
                   </article>
                   <MicroscopicImageCropper
                     label="Microscopic query image"
@@ -128,6 +143,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
                     onFileChange={setQueryImage}
                     frame={queryFrame}
                     onFrameChange={setQueryFrame}
+                    onPreviewChange={setQueryRoiPreview}
                   />
                 </div>
                 <button

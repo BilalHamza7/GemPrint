@@ -13,6 +13,7 @@ type MicroscopicImageCropperProps = {
   onFileChange: (file: File | null) => void
   frame: MicroscopicImageFrame | null
   onFrameChange: (frame: MicroscopicImageFrame | null) => void
+  onPreviewChange?: (preview: string | null) => void
   label: string
   helperText: string
 }
@@ -29,6 +30,7 @@ export function MicroscopicImageCropper({
   onFileChange,
   frame,
   onFrameChange,
+  onPreviewChange,
   label,
   helperText,
 }: MicroscopicImageCropperProps) {
@@ -52,6 +54,7 @@ export function MicroscopicImageCropper({
   function chooseFile(nextFile: File | null) {
     onFileChange(nextFile)
     onFrameChange(null)
+    onPreviewChange?.(null)
   }
 
   function initialiseFrame() {
@@ -83,6 +86,7 @@ export function MicroscopicImageCropper({
     }
     setDraftFrame(next)
     onFrameChange(null)
+    onPreviewChange?.(null)
   }
 
   return (
@@ -159,6 +163,7 @@ export function MicroscopicImageCropper({
                 onClick={() => {
                   initialiseFrame()
                   onFrameChange(null)
+                  onPreviewChange?.(null)
                 }}
                 className="rounded-md border border-stone-600 px-3 py-2 text-stone-300 hover:border-stone-400"
               >
@@ -167,7 +172,11 @@ export function MicroscopicImageCropper({
               <button
                 type="button"
                 disabled={!draftFrame}
-                onClick={() => draftFrame && onFrameChange(draftFrame)}
+                onClick={() => {
+                  if (!draftFrame) return
+                  onFrameChange(draftFrame)
+                  onPreviewChange?.(createRoiPreview(imageRef.current, draftFrame))
+                }}
                 className="rounded-md bg-amber-400 px-3 py-2 font-semibold text-stone-950 hover:bg-amber-300 disabled:opacity-60"
               >
                 Confirm window
@@ -190,4 +199,26 @@ function defaultFrame(sourceAspectRatio: number): MicroscopicImageFrame {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum)
+}
+
+/** Browser-only visual confirmation; FastAPI independently creates the stored ROI. */
+function createRoiPreview(image: HTMLImageElement | null, frame: MicroscopicImageFrame) {
+  if (!image?.naturalWidth || !image.naturalHeight) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 1280
+  canvas.height = 960
+  const context = canvas.getContext('2d')
+  if (!context) return null
+  context.drawImage(
+    image,
+    Math.round(frame.x * image.naturalWidth),
+    Math.round(frame.y * image.naturalHeight),
+    Math.round(frame.width * image.naturalWidth),
+    Math.round(frame.height * image.naturalHeight),
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  )
+  return canvas.toDataURL('image/png')
 }
