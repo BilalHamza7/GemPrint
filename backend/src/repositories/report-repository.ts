@@ -89,7 +89,9 @@ export class ReportRepository {
   async findBySerialForUser(serialNumber: string, userId: string) {
     const { data, error } = await getSupabaseAdminClient()
       .from('gemstone_reports')
-      .select('id, serial_number, species, variety, fingerprint_hash, inclusion_image_path')
+      .select(
+        'id, serial_number, species, variety, fingerprint_hash, inclusion_image_path, micro_image_magnification, micro_image_lighting, micro_image_microscope, micro_image_device, micro_image_area_notes, micro_image_captured_on, micro_image_capture_notes',
+      )
       .eq('user_id', userId)
       .ilike('serial_number', serialNumber.trim())
       .maybeSingle()

@@ -26,21 +26,16 @@ export class VerificationService {
     const fingerprintData = fingerprint as Record<string, unknown>
     const descriptorPath = fingerprintData.descriptor_storage_reference
     const keypoints = fingerprintData.keypoint_metadata_json
-    const fingerprintMetadata = fingerprintData.fingerprint_metadata_json
-    const referenceRoiPath =
-      fingerprintMetadata && typeof fingerprintMetadata === 'object'
-        ? (fingerprintMetadata as Record<string, unknown>).reference_roi_path
-        : undefined
-    if (typeof descriptorPath !== 'string' || !Array.isArray(keypoints) || typeof referenceRoiPath !== 'string') {
+    if (typeof descriptorPath !== 'string' || !Array.isArray(keypoints)) {
       throw new Error('The enrolled fingerprint is incomplete. Upload the reference image again.')
     }
 
-    const reference = await this.media.download(referenceRoiPath)
+    const reference = await this.media.download(referencePath)
     const result = await this.cv.verify({
       query: query.buffer,
       queryContentType: query.mimetype,
       reference,
-      referenceContentType: 'image/png',
+      referenceContentType: this.media.contentTypeForPath(referencePath),
       referenceDescriptors: await this.media.download(descriptorPath),
       referenceKeypoints: keypoints,
       queryFrame,

@@ -26,8 +26,13 @@ export class MediaService {
         throw new Error('The microscopic reference image has insufficient visible features. Upload a clearer image.')
     }
 
-    const uploaded = await this.media.uploadReportImage({ userId, reportId, kind, file })
     if (extraction) {
+      const referenceSourcePath = await this.media.uploadReferenceSource({
+        userId,
+        reportId,
+        bytes: file.buffer,
+        contentType: file.mimetype,
+      })
       const descriptorStorageReference = await this.media.uploadReferenceDescriptors({
         userId,
         reportId,
@@ -46,6 +51,7 @@ export class MediaService {
           latency_ms: extraction.latency_ms,
           capture_frame: frame,
           reference_roi_path: referenceRoiPath,
+          reference_source_path: referenceSourcePath,
           reference_roi_metadata: extraction.roi_metadata,
         },
         algorithmVersion: extraction.algorithm_version,
@@ -54,30 +60,21 @@ export class MediaService {
         preprocessingMetadata: extraction.preprocessing_metadata,
         descriptorStorageReference,
       })
+      return {
+        path: referenceRoiPath,
+        contentType: 'image/png',
+        size: Buffer.byteLength(extraction.roi_image_png_base64, 'base64'),
+      }
     }
-    return uploaded
+    return this.media.uploadReportImage({ userId, reportId, kind, file })
   }
 
   async signedUrl(userId: string, reportId: string, kind: MediaKind) {
     const report = (await this.reports.findForUser(reportId, userId)) as Record<string, unknown> | null
     if (!report) return null
-    const path = kind === 'macro' ? report.macro_image_path : this.referenceRoiPath(report)
+    const path = report[kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path']
     if (typeof path !== 'string' || !path) return { missing: true as const }
     return { signedUrl: await this.media.createSignedUrl(path) }
-  }
-
-  /**
-   * The browser is shown the exact standard ROI that produced the enrolled
-   * descriptor set, rather than the wider original laboratory capture.
-   */
-  private referenceRoiPath(report: Record<string, unknown>) {
-    const fingerprints = Array.isArray(report.fingerprint_data) ? report.fingerprint_data : []
-    const fingerprint = fingerprints[0]
-    if (!fingerprint || typeof fingerprint !== 'object') return null
-    const metadata = (fingerprint as Record<string, unknown>).fingerprint_metadata_json
-    if (!metadata || typeof metadata !== 'object') return null
-    const path = (metadata as Record<string, unknown>).reference_roi_path
-    return typeof path === 'string' ? path : null
   }
 
   async remove(userId: string, reportId: string, kind: MediaKind) {

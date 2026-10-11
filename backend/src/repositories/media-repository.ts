@@ -27,9 +27,37 @@ export class MediaRepository {
 
   async uploadReferenceRoi(input: { userId: string; reportId: string; bytes: Buffer }) {
     const path = `${input.userId}/reports/${input.reportId}/fingerprints/reference-roi.png`
+    const client = getSupabaseAdminClient()
+    const { data: current, error: currentError } = await client
+      .from('gemstone_reports')
+      .select('inclusion_image_path')
+      .eq('id', input.reportId)
+      .eq('user_id', input.userId)
+      .maybeSingle()
+    if (currentError) throw new Error(currentError.message)
+    const { error } = await client.storage
+      .from(BUCKET)
+      .upload(path, input.bytes, { contentType: 'image/png', upsert: true })
+    if (error) throw new Error(error.message)
+    const { error: reportError } = await client
+      .from('gemstone_reports')
+      .update({ inclusion_image_path: path })
+      .eq('id', input.reportId)
+      .eq('user_id', input.userId)
+    if (reportError) throw new Error(reportError.message)
+    const previousPath = (current as Record<string, unknown> | null)?.inclusion_image_path
+    if (typeof previousPath === 'string' && previousPath && previousPath !== path)
+      await client.storage.from(BUCKET).remove([previousPath])
+    return path
+  }
+
+  async uploadReferenceSource(input: { userId: string; reportId: string; bytes: Buffer; contentType: string }) {
+    const extension = extensionByMimeType[input.contentType]
+    if (!extension) throw new Error('Only JPEG and PNG images are supported.')
+    const path = `${input.userId}/reports/${input.reportId}/fingerprints/reference-source.${extension}`
     const { error } = await getSupabaseAdminClient()
       .storage.from(BUCKET)
-      .upload(path, input.bytes, { contentType: 'image/png', upsert: true })
+      .upload(path, input.bytes, { contentType: input.contentType, upsert: true })
     if (error) throw new Error(error.message)
     return path
   }

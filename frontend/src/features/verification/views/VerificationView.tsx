@@ -99,6 +99,25 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
             <p className="mt-1 text-sm text-stone-300">
               {report.species} · {report.variety}
             </p>
+            <section className="mt-4 rounded-lg border border-stone-700 bg-stone-950/50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+                Enrollment capture guidance
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-400">
+                Reproduce these capture conditions as closely as possible before selecting the query window.
+              </p>
+              <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                <CaptureDetail label="Magnification" value={report.micro_image_magnification} />
+                <CaptureDetail label="Lighting" value={report.micro_image_lighting} />
+                <CaptureDetail label="Microscope" value={report.micro_image_microscope} />
+                <CaptureDetail label="Capture device" value={report.micro_image_device} />
+                <CaptureDetail label="Inclusion area" value={report.micro_image_area_notes} />
+                <CaptureDetail label="Capture date" value={report.micro_image_captured_on} />
+              </dl>
+              {report.micro_image_capture_notes && (
+                <p className="mt-4 text-sm leading-6 text-stone-300">Notes: {report.micro_image_capture_notes}</p>
+              )}
+            </section>
             {!report.fingerprint_hash ? (
               <p className="mt-3 text-sm text-amber-200">
                 This report has no usable enrolled fingerprint. Re-upload a clear reference image from the profile.
@@ -212,6 +231,15 @@ function Metric({ label, value }: { label: string; value: string | number | unde
     <div>
       <dt className="text-stone-400">{label}</dt>
       <dd className="mt-1 font-medium text-stone-100">{value ?? '—'}</dd>
+    </div>
+  )
+}
+
+function CaptureDetail({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-wider text-stone-500">{label}</dt>
+      <dd className="mt-1 text-stone-200">{value || 'Not recorded'}</dd>
     </div>
   )
 }

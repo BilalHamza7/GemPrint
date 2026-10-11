@@ -13,9 +13,23 @@ export async function getReport(id: string): Promise<ReportDetail> {
 }
 export async function findReportBySerial(serialNumber: string) {
   return (
-    await api<{ report: Pick<GemstoneReport, 'id' | 'serial_number' | 'species' | 'variety' | 'fingerprint_hash'> }>(
-      `/api/reports/lookup/${encodeURIComponent(serialNumber)}`,
-    )
+    await api<{
+      report: Pick<
+        GemstoneReport,
+        | 'id'
+        | 'serial_number'
+        | 'species'
+        | 'variety'
+        | 'fingerprint_hash'
+        | 'micro_image_magnification'
+        | 'micro_image_lighting'
+        | 'micro_image_microscope'
+        | 'micro_image_device'
+        | 'micro_image_area_notes'
+        | 'micro_image_captured_on'
+        | 'micro_image_capture_notes'
+      >
+    }>(`/api/reports/lookup/${encodeURIComponent(serialNumber)}`)
   ).report
 }
 export async function updateReport(id: string, input: Partial<CreateReportInput>): Promise<GemstoneReport> {
