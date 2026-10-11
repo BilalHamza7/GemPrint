@@ -14,6 +14,7 @@ export const env = {
   NODE_ENV: process.env.NODE_ENV ?? 'development',
   PORT: port,
   FRONTEND_URL: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  ADDITIONAL_ALLOWED_ORIGINS: process.env.ADDITIONAL_ALLOWED_ORIGINS ?? '',
   SUPABASE_URL: normalizeSupabaseProjectUrl(process.env.SUPABASE_URL),
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   CV_SERVICE_URL: process.env.CV_SERVICE_URL ?? 'http://localhost:8000',

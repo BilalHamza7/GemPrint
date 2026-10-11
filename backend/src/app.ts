@@ -12,11 +12,24 @@ type UploadError = Error & { code?: string }
 export const app = express()
 app.disable('x-powered-by')
 app.use(helmet())
-const frontendOrigin = env.FRONTEND_URL.replace(/\/+$/, '')
+
+function normalizeOrigin(origin: string) {
+  return origin.trim().replace(/\/+$/, '')
+}
+
+// The production frontend remains explicitly configured through FRONTEND_URL.
+// Extra trusted origins are deliberately opt-in so local development does not
+// weaken the deployed API's CORS policy.
+const allowedOrigins = new Set(
+  [env.FRONTEND_URL, ...env.ADDITIONAL_ALLOWED_ORIGINS.split(',')]
+    .map(normalizeOrigin)
+    .filter(Boolean),
+)
+
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || origin.replace(/\/+$/, '') === frontendOrigin) return callback(null, true)
+      if (!origin || allowedOrigins.has(normalizeOrigin(origin))) return callback(null, true)
       return callback(new Error('Origin is not allowed by CORS.'))
     },
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
