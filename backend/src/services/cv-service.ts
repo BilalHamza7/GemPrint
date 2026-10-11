@@ -36,6 +36,33 @@ export type VerificationResult = {
   query_roi_metadata?: Record<string, unknown>
 }
 
+type CvErrorPayload = {
+  detail?: unknown
+}
+
+/**
+ * FastAPI validation failures contain an array of field-level errors rather
+ * than a plain string. Convert that response into a useful API/UI message.
+ */
+function formatCvError(detail: unknown) {
+  if (typeof detail === 'string' && detail.trim()) return detail
+
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (!item || typeof item !== 'object') return String(item)
+
+      const error = item as { loc?: unknown; msg?: unknown }
+      const location = Array.isArray(error.loc) ? `${error.loc.join('.')}: ` : ''
+      return `${location}${typeof error.msg === 'string' ? error.msg : 'Invalid request.'}`
+    })
+
+    return messages.filter(Boolean).join(' ')
+  }
+
+  if (detail && typeof detail === 'object') return JSON.stringify(detail)
+  return 'Fingerprint processing failed.'
+}
+
 /** The browser never calls FastAPI: this service is the authenticated internal bridge. */
 export class CvService {
   private readonly baseUrl = env.CV_SERVICE_URL.replace(/\/+$/, '')
@@ -91,15 +118,19 @@ export class CvService {
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
         method: 'POST',
-        headers: { 'X-Internal-Service-Key': env.CV_INTERNAL_SERVICE_KEY },
+        headers: {
+          'X-Internal-Service-Key': env.CV_INTERNAL_SERVICE_KEY,
+          // Lets the CV-service logs distinguish the fixed-window API contract.
+          'X-GemPrint-CV-Contract': 'framed-roi-v2',
+        },
         body: form,
         signal: AbortSignal.timeout(CV_REQUEST_TIMEOUT_MS),
       })
     } catch {
       throw new Error('The fingerprint processing service is unavailable. Please try again shortly.')
     }
-    const body = (await response.json().catch(() => ({}))) as { detail?: string } & T
-    if (!response.ok) throw new Error(body.detail ?? 'Fingerprint processing failed.')
+    const body = (await response.json().catch(() => ({}))) as CvErrorPayload & T
+    if (!response.ok) throw new Error(formatCvError(body.detail))
     return body as T
   }
 }
