@@ -136,7 +136,7 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
         <ReportImagePanel
           reportId={report.id}
           kind="inclusion"
-          title="Fingerprint reference image"
+          title="Selected fingerprint reference region"
           hasImage={Boolean(report.inclusion_image_path)}
           onChanged={loadReport}
         />

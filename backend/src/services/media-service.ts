@@ -61,9 +61,23 @@ export class MediaService {
   async signedUrl(userId: string, reportId: string, kind: MediaKind) {
     const report = (await this.reports.findForUser(reportId, userId)) as Record<string, unknown> | null
     if (!report) return null
-    const path = report[kind === 'macro' ? 'macro_image_path' : 'inclusion_image_path']
+    const path = kind === 'macro' ? report.macro_image_path : this.referenceRoiPath(report)
     if (typeof path !== 'string' || !path) return { missing: true as const }
     return { signedUrl: await this.media.createSignedUrl(path) }
+  }
+
+  /**
+   * The browser is shown the exact standard ROI that produced the enrolled
+   * descriptor set, rather than the wider original laboratory capture.
+   */
+  private referenceRoiPath(report: Record<string, unknown>) {
+    const fingerprints = Array.isArray(report.fingerprint_data) ? report.fingerprint_data : []
+    const fingerprint = fingerprints[0]
+    if (!fingerprint || typeof fingerprint !== 'object') return null
+    const metadata = (fingerprint as Record<string, unknown>).fingerprint_metadata_json
+    if (!metadata || typeof metadata !== 'object') return null
+    const path = (metadata as Record<string, unknown>).reference_roi_path
+    return typeof path === 'string' ? path : null
   }
 
   async remove(userId: string, reportId: string, kind: MediaKind) {

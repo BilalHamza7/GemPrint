@@ -60,7 +60,15 @@ export function ReportImagePanel({
           alt={title}
         />
       ) : (
-        <p className="mt-3 text-sm text-stone-400">No image uploaded.</p>
+        <p className="mt-3 text-sm text-stone-400">
+          {kind === 'inclusion' ? 'No selected fingerprint region is available.' : 'No image uploaded.'}
+        </p>
+      )}
+      {kind === 'inclusion' && url && (
+        <p className="mt-3 text-sm leading-6 text-stone-400">
+          This is the selected 1280 × 960 reference region used for descriptor extraction and verification. The wider
+          original micrograph remains private source evidence.
+        </p>
       )}
       <div className="mt-4 flex gap-2">
         <label className="block flex-1 cursor-pointer rounded-lg border border-dashed border-stone-700 px-3 py-3 text-center text-sm text-stone-300 hover:border-amber-400">
