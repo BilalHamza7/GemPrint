@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
-/**
- * The user's intentional framing of a microscopic image. The frame has a fixed
- * 4:3 aspect ratio because the CV service will later create a 1280 × 960 ROI.
- */
+/** A normalised fixed 4:3 source region that FastAPI resizes to 1280 × 960. */
 export type MicroscopicImageFrame = {
-  zoom: number
-  offsetX: number
-  offsetY: number
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 type MicroscopicImageCropperProps = {
@@ -19,12 +17,12 @@ type MicroscopicImageCropperProps = {
   helperText: string
 }
 
-const DEFAULT_FRAME: MicroscopicImageFrame = { zoom: 1, offsetX: 0, offsetY: 0 }
+const FRAME_ASPECT_RATIO = 4 / 3
 
 /**
- * This is a user-guided capture aid, not an image-processing stage. It leaves
- * the uploaded source file unchanged. The next CV integration step will use the
- * approved frame to create the standard ROI before grayscale and CLAHE begin.
+ * A capture-alignment aid, not a preprocessing operation. The original upload
+ * remains unchanged. The selected fixed window is recreated server-side before
+ * grayscale, CLAHE, SIFT, FLANN and RANSAC processing take place.
  */
 export function MicroscopicImageCropper({
   file,
@@ -34,24 +32,20 @@ export function MicroscopicImageCropper({
   label,
   helperText,
 }: MicroscopicImageCropperProps) {
-  const viewportRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [draftFrame, setDraftFrame] = useState<MicroscopicImageFrame>(DEFAULT_FRAME)
-  const [dragStart, setDragStart] = useState<{
-    clientX: number
-    clientY: number
-    frame: MicroscopicImageFrame
-  } | null>(null)
+  const [draftFrame, setDraftFrame] = useState<MicroscopicImageFrame | null>(null)
+  const [dragStart, setDragStart] = useState<{ x: number; y: number; frame: MicroscopicImageFrame } | null>(null)
 
   useEffect(() => {
     if (!file) {
       setPreviewUrl(null)
+      setDraftFrame(null)
       return
     }
-
     const url = URL.createObjectURL(file)
     setPreviewUrl(url)
-    setDraftFrame(DEFAULT_FRAME)
+    setDraftFrame(null)
     return () => URL.revokeObjectURL(url)
   }, [file])
 
@@ -60,35 +54,35 @@ export function MicroscopicImageCropper({
     onFrameChange(null)
   }
 
-  function beginPan(event: PointerEvent<HTMLDivElement>) {
-    if (!previewUrl) return
+  function initialiseFrame() {
+    const image = imageRef.current
+    if (!image?.naturalWidth || !image.naturalHeight) return
+    setDraftFrame(defaultFrame(image.naturalWidth / image.naturalHeight))
+  }
+
+  function beginMove(event: PointerEvent<HTMLDivElement>) {
+    if (!draftFrame) return
+    const bounds = event.currentTarget.getBoundingClientRect()
     event.currentTarget.setPointerCapture(event.pointerId)
-    setDragStart({ clientX: event.clientX, clientY: event.clientY, frame: draftFrame })
-  }
-
-  function panImage(event: PointerEvent<HTMLDivElement>) {
-    if (!dragStart || !viewportRef.current) return
-
-    const bounds = viewportRef.current.getBoundingClientRect()
-    const panLimit = (dragStart.frame.zoom - 1) / (2 * dragStart.frame.zoom)
-
-    // At 1× the source exactly fills the viewport, so it cannot be panned into
-    // empty space. Extra zoom creates the safe panning area.
-    setDraftFrame({
-      ...dragStart.frame,
-      // Store a proportional offset so the approved frame can be recreated later.
-      offsetX: clamp(dragStart.frame.offsetX + (event.clientX - dragStart.clientX) / bounds.width, -panLimit, panLimit),
-      offsetY: clamp(
-        dragStart.frame.offsetY + (event.clientY - dragStart.clientY) / bounds.height,
-        -panLimit,
-        panLimit,
-      ),
+    setDragStart({
+      x: (event.clientX - bounds.left) / bounds.width,
+      y: (event.clientY - bounds.top) / bounds.height,
+      frame: draftFrame,
     })
-    onFrameChange(null)
   }
 
-  function finishPan() {
-    setDragStart(null)
+  function moveFrame(event: PointerEvent<HTMLDivElement>) {
+    if (!dragStart || !draftFrame) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const x = (event.clientX - bounds.left) / bounds.width
+    const y = (event.clientY - bounds.top) / bounds.height
+    const next = {
+      ...dragStart.frame,
+      x: clamp(dragStart.frame.x + x - dragStart.x, 0, 1 - dragStart.frame.width),
+      y: clamp(dragStart.frame.y + y - dragStart.y, 0, 1 - dragStart.frame.height),
+    }
+    setDraftFrame(next)
+    onFrameChange(null)
   }
 
   return (
@@ -98,7 +92,7 @@ export function MicroscopicImageCropper({
           <h2 className="text-sm font-semibold text-stone-100">{label}</h2>
           <p className="mt-1 text-sm leading-6 text-stone-400">{helperText}</p>
         </div>
-        {frame && <span className="text-xs font-medium text-emerald-300">Frame confirmed</span>}
+        {frame && <span className="text-xs font-medium text-emerald-300">Window confirmed</span>}
       </div>
 
       <label className="mt-4 block text-sm text-stone-300">
@@ -113,84 +107,70 @@ export function MicroscopicImageCropper({
 
       {previewUrl && (
         <>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <p className="text-stone-300">Drag the image to place the selected inclusion inside the fixed frame.</p>
-            <span className="rounded bg-stone-800 px-2 py-1 text-xs font-medium text-stone-300">1280 × 960 · 4:3</span>
-          </div>
-
-          <div
-            ref={viewportRef}
-            role="application"
-            aria-label="Fixed microscopic feature framing viewport"
-            onPointerDown={beginPan}
-            onPointerMove={panImage}
-            onPointerUp={finishPan}
-            onPointerCancel={finishPan}
-            className="relative mt-3 aspect-[4/3] touch-none cursor-grab overflow-hidden rounded-lg border-2 border-amber-400 bg-black active:cursor-grabbing"
-          >
-            <img
-              src={previewUrl}
-              alt="Microscopic image being positioned inside the fixed fingerprint frame"
-              draggable={false}
-              className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover transition-transform duration-75"
-              style={{
-                transform: `translate(${draftFrame.offsetX * 100}%, ${draftFrame.offsetY * 100}%) scale(${draftFrame.zoom})`,
-              }}
-            />
-            <div className="pointer-events-none absolute inset-0 border-[3px] border-amber-300/90 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.5)]">
-              <div className="absolute left-2 top-2 rounded bg-amber-400 px-2 py-1 text-xs font-semibold text-stone-950">
-                Standard fingerprint frame
-              </div>
-            </div>
-          </div>
-
-          <label className="mt-4 block text-sm text-stone-300">
-            Zoom
-            <div className="mt-2 flex items-center gap-3">
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.05"
-                value={draftFrame.zoom}
-                onChange={(event) => {
-                  const zoom = Number(event.target.value)
-                  const panLimit = (zoom - 1) / (2 * zoom)
-                  setDraftFrame((current) => ({
-                    zoom,
-                    offsetX: clamp(current.offsetX, -panLimit, panLimit),
-                    offsetY: clamp(current.offsetY, -panLimit, panLimit),
-                  }))
-                  onFrameChange(null)
-                }}
-                className="w-full accent-amber-400"
+          <p className="mt-4 text-sm text-stone-300">
+            Move the fixed 1280 × 960 fingerprint window over the distinctive inclusion. The image itself is never
+            resized, zoomed, or changed in the browser.
+          </p>
+          <div className="mt-3 overflow-hidden rounded-lg border border-stone-700 bg-black p-1">
+            <div
+              role="application"
+              aria-label="Movable fixed microscopic fingerprint window"
+              onPointerMove={moveFrame}
+              onPointerUp={() => setDragStart(null)}
+              onPointerCancel={() => setDragStart(null)}
+              className="relative mx-auto w-full touch-none"
+            >
+              <img
+                ref={imageRef}
+                src={previewUrl}
+                alt="Microscopic image with a movable standard fingerprint window"
+                draggable={false}
+                onLoad={initialiseFrame}
+                className="block w-full select-none"
               />
-              <span className="w-12 text-right text-xs text-stone-400">{draftFrame.zoom.toFixed(2)}×</span>
+              {draftFrame && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Move standard fingerprint window"
+                  onPointerDown={beginMove}
+                  className="absolute cursor-grab border-2 border-amber-300 bg-amber-300/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] active:cursor-grabbing"
+                  style={{
+                    left: `${draftFrame.x * 100}%`,
+                    top: `${draftFrame.y * 100}%`,
+                    width: `${draftFrame.width * 100}%`,
+                    height: `${draftFrame.height * 100}%`,
+                  }}
+                >
+                  <span className="absolute -top-7 left-0 whitespace-nowrap rounded bg-amber-400 px-2 py-1 text-xs font-semibold text-stone-950">
+                    1280 × 960 standard window
+                  </span>
+                </div>
+              )}
             </div>
-          </label>
-
+          </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             <p className="max-w-xl leading-6 text-stone-500">
-              The original image is retained unchanged as laboratory evidence. Only the approved standard frame will
-              later be used as the CV input.
+              Keep the same physical inclusion within this window for enrollment and verification.
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  setDraftFrame(DEFAULT_FRAME)
+                  initialiseFrame()
                   onFrameChange(null)
                 }}
                 className="rounded-md border border-stone-600 px-3 py-2 text-stone-300 hover:border-stone-400"
               >
-                Reset
+                Centre window
               </button>
               <button
                 type="button"
-                onClick={() => onFrameChange(draftFrame)}
-                className="rounded-md bg-amber-400 px-3 py-2 font-semibold text-stone-950 hover:bg-amber-300"
+                disabled={!draftFrame}
+                onClick={() => draftFrame && onFrameChange(draftFrame)}
+                className="rounded-md bg-amber-400 px-3 py-2 font-semibold text-stone-950 hover:bg-amber-300 disabled:opacity-60"
               >
-                Confirm frame
+                Confirm window
               </button>
             </div>
           </div>
@@ -198,6 +178,14 @@ export function MicroscopicImageCropper({
       )}
     </section>
   )
+}
+
+function defaultFrame(sourceAspectRatio: number): MicroscopicImageFrame {
+  const preferredWidth = 0.55
+  const preferredHeight = (preferredWidth * sourceAspectRatio) / FRAME_ASPECT_RATIO
+  const height = Math.min(preferredHeight, 0.72)
+  const width = height === preferredHeight ? preferredWidth : (height * FRAME_ASPECT_RATIO) / sourceAspectRatio
+  return { x: (1 - width) / 2, y: (1 - height) / 2, width, height }
 }
 
 function clamp(value: number, minimum: number, maximum: number) {

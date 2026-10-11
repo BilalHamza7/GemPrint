@@ -64,52 +64,34 @@ def parse_frame(frame_json: str) -> dict[str, float]:
     """
     try:
         frame = json.loads(frame_json)
-        zoom = float(frame['zoom'])
-        offset_x = float(frame['offsetX'])
-        offset_y = float(frame['offsetY'])
+        x = float(frame['x'])
+        y = float(frame['y'])
+        width = float(frame['width'])
+        height = float(frame['height'])
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid microscopic image frame.') from error
 
-    pan_limit = (zoom - 1) / (2 * zoom) if zoom else -1
     if (
-        not math.isfinite(zoom)
-        or not math.isfinite(offset_x)
-        or not math.isfinite(offset_y)
-        or not 1 <= zoom <= 3
-        or abs(offset_x) > pan_limit + 0.001
-        or abs(offset_y) > pan_limit + 0.001
+        not all(math.isfinite(value) for value in [x, y, width, height])
+        or x < 0
+        or y < 0
+        or width <= 0
+        or height <= 0
+        or x + width > 1.001
+        or y + height > 1.001
+        or abs(width / height - ROI_ASPECT_RATIO) > 0.02
     ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Microscopic image frame is outside the permitted view.')
-    return {'zoom': zoom, 'offset_x': offset_x, 'offset_y': offset_y}
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Microscopic image frame must be a valid 4:3 window.')
+    return {'x': x, 'y': y, 'width': width, 'height': height}
 
 
 def standardize_roi(image: np.ndarray, frame: dict[str, float]) -> tuple[np.ndarray, dict[str, float | int]]:
     """Recreate the fixed 4:3 browser viewport and resize it to 1280 × 960."""
     height, width = image.shape[:2]
-    image_aspect = width / height
-    if image_aspect >= ROI_ASPECT_RATIO:
-        visible_width = height * ROI_ASPECT_RATIO
-        visible_height = float(height)
-    else:
-        visible_width = float(width)
-        visible_height = width / ROI_ASPECT_RATIO
-
-    zoom = frame['zoom']
-    crop_width = visible_width / zoom
-    crop_height = visible_height / zoom
-    base_center_x = width / 2
-    base_center_y = height / 2
-    pan_limit = (zoom - 1) / (2 * zoom)
-    normalized_x = frame['offset_x'] / pan_limit if pan_limit else 0
-    normalized_y = frame['offset_y'] / pan_limit if pan_limit else 0
-
-    # Moving the image right in the browser moves the sampled source region left.
-    center_x = base_center_x - normalized_x * (visible_width - crop_width) / 2
-    center_y = base_center_y - normalized_y * (visible_height - crop_height) / 2
-    x = int(round(min(max(center_x - crop_width / 2, 0), width - crop_width)))
-    y = int(round(min(max(center_y - crop_height / 2, 0), height - crop_height)))
-    crop_width_int = max(1, int(round(crop_width)))
-    crop_height_int = max(1, int(round(crop_height)))
+    crop_width_int = max(1, int(round(frame['width'] * width)))
+    crop_height_int = max(1, int(round(frame['height'] * height)))
+    x = min(max(int(round(frame['x'] * width)), 0), width - crop_width_int)
+    y = min(max(int(round(frame['y'] * height)), 0), height - crop_height_int)
     cropped = image[y:y + crop_height_int, x:x + crop_width_int]
     roi = cv2.resize(cropped, (ROI_WIDTH, ROI_HEIGHT), interpolation=cv2.INTER_AREA)
     return roi, {
@@ -121,9 +103,10 @@ def standardize_roi(image: np.ndarray, frame: dict[str, float]) -> tuple[np.ndar
         'crop_height': crop_height_int,
         'roi_width': ROI_WIDTH,
         'roi_height': ROI_HEIGHT,
-        'frame_zoom': zoom,
-        'frame_offset_x': frame['offset_x'],
-        'frame_offset_y': frame['offset_y'],
+        'frame_x': frame['x'],
+        'frame_y': frame['y'],
+        'frame_width': frame['width'],
+        'frame_height': frame['height'],
     }
 
 

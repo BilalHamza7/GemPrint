@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { MicroscopicImageCropper, type MicroscopicImageFrame } from '../../../components/MicroscopicImageCropper'
-import { findReportBySerial, verifyReport, type VerificationOutcome } from '../../reports/api/reportsApi'
+import {
+  findReportBySerial,
+  getReportImageUrl,
+  verifyReport,
+  type VerificationOutcome,
+} from '../../reports/api/reportsApi'
 
 export function VerificationView({ onBack, onOpenReport }: { onBack: () => void; onOpenReport: (id: string) => void }) {
   const [serialNumber, setSerialNumber] = useState('')
@@ -10,6 +15,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
   const [isSearching, setIsSearching] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [report, setReport] = useState<Awaited<ReturnType<typeof findReportBySerial>> | null>(null)
+  const [referenceImageUrl, setReferenceImageUrl] = useState('')
   const [outcome, setOutcome] = useState<VerificationOutcome | null>(null)
 
   async function findReport() {
@@ -17,10 +23,14 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
     if (!value) return setError('Enter the laboratory report serial number.')
     setError('')
     setReport(null)
+    setReferenceImageUrl('')
     setOutcome(null)
     setIsSearching(true)
     try {
-      setReport(await findReportBySerial(value))
+      const found = await findReportBySerial(value)
+      setReport(found)
+      const { signedUrl } = await getReportImageUrl(found.id, 'inclusion')
+      setReferenceImageUrl(signedUrl)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The report could not be found.')
     } finally {
@@ -93,14 +103,33 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
               </p>
             ) : (
               <>
-                <MicroscopicImageCropper
-                  label="Microscopic query image"
-                  helperText="Choose a new microscope image and position the same physical inclusion inside the standard fingerprint frame."
-                  file={queryImage}
-                  onFileChange={setQueryImage}
-                  frame={queryFrame}
-                  onFrameChange={setQueryFrame}
-                />
+                <div className="mt-5 grid gap-5 lg:grid-cols-2 lg:items-start">
+                  <article className="rounded-xl border border-stone-700 bg-stone-950/60 p-4">
+                    <p className="text-sm font-semibold text-stone-100">Enrolled reference image</p>
+                    <p className="mt-1 text-sm leading-6 text-stone-400">
+                      Use this reference to identify and frame the same physical inclusion in the query image.
+                    </p>
+                    {referenceImageUrl ? (
+                      <img
+                        className="mt-4 aspect-[4/3] w-full rounded-lg border border-stone-700 object-contain"
+                        src={referenceImageUrl}
+                        alt="Enrolled microscopic fingerprint reference"
+                      />
+                    ) : (
+                      <p className="mt-4 rounded-lg border border-amber-900/70 bg-amber-950/20 p-3 text-sm text-amber-200">
+                        The enrolled reference image could not be loaded. Refresh the report search and try again.
+                      </p>
+                    )}
+                  </article>
+                  <MicroscopicImageCropper
+                    label="Microscopic query image"
+                    helperText="Choose a new microscope image, then move the fixed window over the same inclusion shown in the enrolled reference."
+                    file={queryImage}
+                    onFileChange={setQueryImage}
+                    frame={queryFrame}
+                    onFrameChange={setQueryFrame}
+                  />
+                </div>
                 <button
                   type="button"
                   disabled={isVerifying || !queryImage || !queryFrame}
