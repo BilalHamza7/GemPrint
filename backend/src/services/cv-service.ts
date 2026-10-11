@@ -1,5 +1,8 @@
 import { env } from '../config/env.js'
 
+// Render free services can need more than 30 seconds to wake after inactivity.
+const CV_REQUEST_TIMEOUT_MS = 90_000
+
 export type ExtractionResult = {
   keypoint_count: number
   keypoints: unknown[]
@@ -77,7 +80,7 @@ export class CvService {
         method: 'POST',
         headers: { 'X-Internal-Service-Key': env.CV_INTERNAL_SERVICE_KEY },
         body: form,
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(CV_REQUEST_TIMEOUT_MS),
       })
     } catch {
       throw new Error('The fingerprint processing service is unavailable. Please try again shortly.')

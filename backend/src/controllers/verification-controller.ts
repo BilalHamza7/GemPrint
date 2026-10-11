@@ -13,8 +13,12 @@ export async function verifyReport(request: Request, response: Response) {
       ? response.status(201).json({ verification: verificationResult })
       : response.status(404).json({ error: 'Report not found.' })
   } catch (caught) {
-    return response
-      .status(400)
-      .json({ error: caught instanceof Error ? caught.message : 'Verification could not be completed.' })
+    const message = caught instanceof Error ? caught.message : 'Verification could not be completed.'
+    if (message.includes('fingerprint processing service is unavailable')) {
+      return response
+        .status(503)
+        .json({ error: 'Fingerprint processing is waking up. Wait a moment, then retry verification.' })
+    }
+    return response.status(400).json({ error: message })
   }
 }
