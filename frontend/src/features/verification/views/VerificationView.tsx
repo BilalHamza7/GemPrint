@@ -57,7 +57,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
   }
 
   return (
-    <section className="mx-auto max-w-3xl px-6 py-12">
+    <section className="mx-auto max-w-7xl px-6 py-12">
       <button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>
         ← Back to registry
       </button>
@@ -124,7 +124,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
               </p>
             ) : (
               <>
-                <div className="mt-5 grid gap-5 lg:grid-cols-2 lg:items-start">
+                <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.6fr)] lg:items-start">
                   <article className="rounded-xl border border-stone-700 bg-stone-950/60 p-4">
                     <p className="text-sm font-semibold text-stone-100">Enrolled reference image</p>
                     <p className="mt-1 text-sm leading-6 text-stone-400">
@@ -144,9 +144,6 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
                     {queryRoiPreview && (
                       <>
                         <p className="mt-5 text-sm font-semibold text-stone-100">Selected query region</p>
-                        <p className="mt-1 text-sm leading-6 text-stone-400">
-                          This browser preview represents the same 1280 × 960 region the server will process.
-                        </p>
                         <img
                           className="mt-3 aspect-[4/3] w-full rounded-lg border border-emerald-800 object-contain"
                           src={queryRoiPreview}
@@ -157,7 +154,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
                   </article>
                   <MicroscopicImageCropper
                     label="Microscopic query image"
-                    helperText="Choose a new microscope image, then move the fixed window over the same inclusion shown in the enrolled reference."
+                    helperText="Upload the new microscope image, then move the fixed window over the inclusion shown in the enrolled reference."
                     file={queryImage}
                     onFileChange={setQueryImage}
                     frame={queryFrame}

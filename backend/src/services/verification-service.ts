@@ -19,7 +19,9 @@ export class VerificationService {
     if (typeof referencePath !== 'string' || !referencePath) {
       throw new Error('This report does not have a microscopic reference image.')
     }
-    const fingerprint = Array.isArray(report.fingerprint_data) ? report.fingerprint_data[0] : null
+    // PostgREST can represent a unique embedded relationship as either an
+    // object or a one-item array, depending on the generated relationship.
+    const fingerprint = Array.isArray(report.fingerprint_data) ? report.fingerprint_data[0] : report.fingerprint_data
     if (!fingerprint || typeof fingerprint !== 'object') {
       throw new Error('This report does not have enrolled fingerprint data. Upload the reference image again.')
     }
