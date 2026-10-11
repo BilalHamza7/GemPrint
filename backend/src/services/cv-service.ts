@@ -91,7 +91,9 @@ export class CvService {
       {
         query: { bytes: input.query, contentType: input.queryContentType, filename: 'query-image' },
         reference: { bytes: input.reference, contentType: input.referenceContentType, filename: 'reference-image' },
-        referenceDescriptors: {
+        // Multipart field names are the FastAPI endpoint contract, so retain
+        // its snake_case name at this service boundary.
+        reference_descriptors: {
           bytes: input.referenceDescriptors,
           contentType: 'application/octet-stream',
           filename: 'reference-descriptors.npy',
