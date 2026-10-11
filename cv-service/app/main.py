@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import json
+import math
 import time
 
 import cv2
@@ -16,6 +17,9 @@ MINIMUM_INLIERS = 10
 MINIMUM_INLIER_RATIO = 0.5
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MAX_PROCESSING_DIMENSION = 2048
+ROI_WIDTH = 1280
+ROI_HEIGHT = 960
+ROI_ASPECT_RATIO = ROI_WIDTH / ROI_HEIGHT
 
 # A single worker/thread avoids OpenCV allocating extra working memory on Render's 512 MB service.
 cv2.setNumThreads(1)
@@ -51,14 +55,87 @@ def preprocess(image: np.ndarray) -> np.ndarray:
     return cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(image)
 
 
-def extract_features(raw: bytes) -> tuple[np.ndarray, list[cv2.KeyPoint], np.ndarray | None]:
+def parse_frame(frame_json: str) -> dict[str, float]:
+    """Validate the browser-confirmed fixed-frame transform.
+
+    Framing standardises the user's microscopic input. It does not perform
+    segmentation or feature enhancement; CLAHE remains the first processing
+    operation applied to the selected ROI.
+    """
+    try:
+        frame = json.loads(frame_json)
+        zoom = float(frame['zoom'])
+        offset_x = float(frame['offsetX'])
+        offset_y = float(frame['offsetY'])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid microscopic image frame.') from error
+
+    pan_limit = (zoom - 1) / (2 * zoom) if zoom else -1
+    if (
+        not math.isfinite(zoom)
+        or not math.isfinite(offset_x)
+        or not math.isfinite(offset_y)
+        or not 1 <= zoom <= 3
+        or abs(offset_x) > pan_limit + 0.001
+        or abs(offset_y) > pan_limit + 0.001
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Microscopic image frame is outside the permitted view.')
+    return {'zoom': zoom, 'offset_x': offset_x, 'offset_y': offset_y}
+
+
+def standardize_roi(image: np.ndarray, frame: dict[str, float]) -> tuple[np.ndarray, dict[str, float | int]]:
+    """Recreate the fixed 4:3 browser viewport and resize it to 1280 × 960."""
+    height, width = image.shape[:2]
+    image_aspect = width / height
+    if image_aspect >= ROI_ASPECT_RATIO:
+        visible_width = height * ROI_ASPECT_RATIO
+        visible_height = float(height)
+    else:
+        visible_width = float(width)
+        visible_height = width / ROI_ASPECT_RATIO
+
+    zoom = frame['zoom']
+    crop_width = visible_width / zoom
+    crop_height = visible_height / zoom
+    base_center_x = width / 2
+    base_center_y = height / 2
+    pan_limit = (zoom - 1) / (2 * zoom)
+    normalized_x = frame['offset_x'] / pan_limit if pan_limit else 0
+    normalized_y = frame['offset_y'] / pan_limit if pan_limit else 0
+
+    # Moving the image right in the browser moves the sampled source region left.
+    center_x = base_center_x - normalized_x * (visible_width - crop_width) / 2
+    center_y = base_center_y - normalized_y * (visible_height - crop_height) / 2
+    x = int(round(min(max(center_x - crop_width / 2, 0), width - crop_width)))
+    y = int(round(min(max(center_y - crop_height / 2, 0), height - crop_height)))
+    crop_width_int = max(1, int(round(crop_width)))
+    crop_height_int = max(1, int(round(crop_height)))
+    cropped = image[y:y + crop_height_int, x:x + crop_width_int]
+    roi = cv2.resize(cropped, (ROI_WIDTH, ROI_HEIGHT), interpolation=cv2.INTER_AREA)
+    return roi, {
+        'source_width': width,
+        'source_height': height,
+        'crop_x': x,
+        'crop_y': y,
+        'crop_width': crop_width_int,
+        'crop_height': crop_height_int,
+        'roi_width': ROI_WIDTH,
+        'roi_height': ROI_HEIGHT,
+        'frame_zoom': zoom,
+        'frame_offset_x': frame['offset_x'],
+        'frame_offset_y': frame['offset_y'],
+    }
+
+
+def extract_features(raw: bytes, frame: dict[str, float]) -> tuple[np.ndarray, list[cv2.KeyPoint], np.ndarray | None, dict[str, float | int]]:
     image = decode_image(raw)
+    roi, roi_metadata = standardize_roi(image, frame)
     keypoints, descriptors = cv2.SIFT_create(
         nfeatures=1500,
         contrastThreshold=0.03,
         edgeThreshold=10,
-    ).detectAndCompute(preprocess(image), None)
-    return image, keypoints, descriptors
+    ).detectAndCompute(preprocess(roi), None)
+    return roi, keypoints, descriptors, roi_metadata
 
 
 def sha256(raw: bytes) -> str:
@@ -87,6 +164,13 @@ def serialize_descriptors(descriptors: np.ndarray | None) -> str:
     stream = io.BytesIO()
     np.save(stream, descriptors if descriptors is not None else np.empty((0, 128), dtype=np.float32), allow_pickle=False)
     return base64.b64encode(stream.getvalue()).decode('ascii')
+
+
+def serialize_png(image: np.ndarray) -> str:
+    ok, encoded = cv2.imencode('.png', image)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not encode the standard fingerprint region.')
+    return base64.b64encode(encoded.tobytes()).decode('ascii')
 
 
 def load_descriptors(raw: bytes) -> np.ndarray:
@@ -149,10 +233,10 @@ def health() -> dict[str, str]:
 
 
 @app.post('/extract-fingerprint', dependencies=[Depends(require_internal_key)])
-async def extract_fingerprint(image: UploadFile = File(...)) -> dict:
+async def extract_fingerprint(image: UploadFile = File(...), frame_json: str = Form(...)) -> dict:
     started = time.perf_counter()
     raw = await read_image_upload(image)
-    _, keypoints, descriptors = extract_features(raw)
+    roi, keypoints, descriptors, roi_metadata = extract_features(raw, parse_frame(frame_json))
     points = metadata_for(keypoints)
     fingerprint = hashlib.sha256(
         (str(points) + (descriptors.tobytes().hex() if descriptors is not None else '')).encode()
@@ -172,9 +256,13 @@ async def extract_fingerprint(image: UploadFile = File(...)) -> dict:
             'clahe_tile_grid': [8, 8],
             'sift_nfeatures': 1500,
             'max_processing_dimension': MAX_PROCESSING_DIMENSION,
+            'standard_roi_width': ROI_WIDTH,
+            'standard_roi_height': ROI_HEIGHT,
         },
         'algorithm_version': ALGORITHM_VERSION,
         'descriptor_npy_base64': serialize_descriptors(descriptors),
+        'roi_image_png_base64': serialize_png(roi),
+        'roi_metadata': roi_metadata,
     }
 
 
@@ -184,11 +272,14 @@ async def verify_fingerprint(
     reference: UploadFile = File(...),
     reference_descriptors: UploadFile = File(...),
     reference_keypoints_json: str = Form(...),
+    query_frame_json: str = Form(...),
 ) -> dict:
     started = time.perf_counter()
     query_raw = await read_image_upload(query)
     reference_raw = await read_image_upload(reference)
-    query_image, query_keypoints, query_descriptors = extract_features(query_raw)
+    query_image, query_keypoints, query_descriptors, query_roi_metadata = extract_features(
+        query_raw, parse_frame(query_frame_json)
+    )
     reference_image = decode_image(reference_raw)
     reference_keypoints = restore_keypoints(reference_keypoints_json)
     enrolled_descriptors = load_descriptors(await reference_descriptors.read())
@@ -207,6 +298,8 @@ async def verify_fingerprint(
             'reference_image_sha256': sha256(reference_raw),
             'latency_ms': round((time.perf_counter() - started) * 1000, 2),
             'algorithm_version': ALGORITHM_VERSION,
+            'query_roi_png_base64': serialize_png(query_image),
+            'query_roi_metadata': query_roi_metadata,
         }
 
     matcher = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=50))
@@ -240,6 +333,8 @@ async def verify_fingerprint(
             good_matches,
             inlier_mask,
         ),
+        'query_roi_png_base64': serialize_png(query_image),
+        'query_roi_metadata': query_roi_metadata,
     }
 
 

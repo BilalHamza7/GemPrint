@@ -41,6 +41,14 @@ export type CreateReportInput = {
 export type ReportDetail = GemstoneReport & {
   macro_image_path: string | null
   inclusion_image_path: string | null
-  fingerprint_data: unknown[]
+  fingerprint_data: FingerprintRecord[]
   verification_logs: unknown[]
+}
+
+export type FingerprintRecord = {
+  keypoint_count: number
+  quality_score: number | null
+  algorithm_version: string
+  preprocessing_metadata_json: Record<string, unknown>
+  fingerprint_metadata_json: Record<string, unknown>
 }

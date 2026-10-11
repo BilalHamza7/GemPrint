@@ -1,4 +1,5 @@
 import { env } from '../config/env.js'
+import type { MicroscopicImageFrame } from '../models/microscopic-frame.js'
 
 // Render free services can need more than 30 seconds to wake after inactivity.
 const CV_REQUEST_TIMEOUT_MS = 90_000
@@ -14,6 +15,8 @@ export type ExtractionResult = {
   preprocessing_metadata: Record<string, unknown>
   algorithm_version: string
   descriptor_npy_base64: string
+  roi_image_png_base64: string
+  roi_metadata: Record<string, unknown>
 }
 
 export type VerificationResult = {
@@ -29,16 +32,22 @@ export type VerificationResult = {
   latency_ms: number
   algorithm_version?: string
   match_proof_base64?: string
+  query_roi_png_base64?: string
+  query_roi_metadata?: Record<string, unknown>
 }
 
 /** The browser never calls FastAPI: this service is the authenticated internal bridge. */
 export class CvService {
   private readonly baseUrl = env.CV_SERVICE_URL.replace(/\/+$/, '')
 
-  async extractReference(image: Buffer, contentType: string) {
-    return this.post<ExtractionResult>('/extract-fingerprint', {
-      image: { bytes: image, contentType, filename: 'reference-image' },
-    })
+  async extractReference(image: Buffer, contentType: string, frame: MicroscopicImageFrame) {
+    return this.post<ExtractionResult>(
+      '/extract-fingerprint',
+      {
+        image: { bytes: image, contentType, filename: 'reference-image' },
+      },
+      { frame_json: JSON.stringify(frame) },
+    )
   }
 
   async verify(input: {
@@ -48,6 +57,7 @@ export class CvService {
     referenceContentType: string
     referenceDescriptors: Buffer
     referenceKeypoints: unknown[]
+    queryFrame: MicroscopicImageFrame
   }) {
     return this.post<VerificationResult>(
       '/verify-fingerprint',
@@ -60,7 +70,10 @@ export class CvService {
           filename: 'reference-descriptors.npy',
         },
       },
-      { reference_keypoints_json: JSON.stringify(input.referenceKeypoints) },
+      {
+        reference_keypoints_json: JSON.stringify(input.referenceKeypoints),
+        query_frame_json: JSON.stringify(input.queryFrame),
+      },
     )
   }
 

@@ -25,10 +25,19 @@ export class MediaRepository {
     return path
   }
 
+  async uploadReferenceRoi(input: { userId: string; reportId: string; bytes: Buffer }) {
+    const path = `${input.userId}/reports/${input.reportId}/fingerprints/reference-roi.png`
+    const { error } = await getSupabaseAdminClient()
+      .storage.from(BUCKET)
+      .upload(path, input.bytes, { contentType: 'image/png', upsert: true })
+    if (error) throw new Error(error.message)
+    return path
+  }
+
   async uploadVerificationArtifact(input: {
     userId: string
     reportId: string
-    kind: 'query' | 'match-proof'
+    kind: 'query' | 'query-roi' | 'match-proof'
     bytes: Buffer
     contentType: string
   }) {

@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { MicroscopicImageCropper, type MicroscopicImageFrame } from '../../../components/MicroscopicImageCropper'
 import { createReport, uploadReportImage } from '../api/reportsApi'
 
-export function RegisterReportView({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+export function RegisterReportView({
+  onComplete,
+  onCancel,
+}: {
+  onComplete: (reportId: string) => void
+  onCancel: () => void
+}) {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [referenceImage, setReferenceImage] = useState<File | null>(null)
@@ -33,8 +39,8 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
       if (mainImage instanceof File && mainImage.size > 0) await uploadReportImage(report.id, 'macro', mainImage)
       if (!referenceImage) throw new Error('A microscopic fingerprint reference image is required for enrollment.')
       if (!referenceFrame) throw new Error('Position and confirm the standard microscopic fingerprint frame to enroll.')
-      await uploadReportImage(report.id, 'inclusion', referenceImage)
-      onComplete()
+      await uploadReportImage(report.id, 'inclusion', referenceImage, referenceFrame)
+      onComplete(report.id)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The report could not be saved.')
     } finally {

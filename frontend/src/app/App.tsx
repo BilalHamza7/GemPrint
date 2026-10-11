@@ -51,7 +51,13 @@ export function App() {
         }}
       />
     ) : page === 'register' ? (
-      <RegisterReportView onComplete={() => navigate('dashboard')} onCancel={() => navigate('dashboard')} />
+      <RegisterReportView
+        onComplete={(reportId) => {
+          setSelectedReportId(reportId)
+          navigate('detail')
+        }}
+        onCancel={() => navigate('dashboard')}
+      />
     ) : page === 'detail' && selectedReportId ? (
       <ReportDetailView reportId={selectedReportId} onBack={() => navigate('dashboard')} />
     ) : page === 'verify' ? (

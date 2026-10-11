@@ -1,6 +1,7 @@
 import { MediaRepository } from '../repositories/media-repository.js'
 import { ReportRepository } from '../repositories/report-repository.js'
 import type { MediaKind } from '../models/media.js'
+import type { MicroscopicImageFrame } from '../models/microscopic-frame.js'
 import { CvService } from './cv-service.js'
 
 export class MediaService {
@@ -10,10 +11,16 @@ export class MediaService {
     private readonly cv = new CvService(),
   ) {}
 
-  async upload(userId: string, reportId: string, kind: MediaKind, file: Express.Multer.File) {
+  async upload(
+    userId: string,
+    reportId: string,
+    kind: MediaKind,
+    file: Express.Multer.File,
+    frame?: MicroscopicImageFrame,
+  ) {
     const report = await this.reports.findForUser(reportId, userId)
     if (!report) return null
-    const extraction = kind === 'inclusion' ? await this.cv.extractReference(file.buffer, file.mimetype) : null
+    const extraction = kind === 'inclusion' ? await this.cv.extractReference(file.buffer, file.mimetype, frame!) : null
     if (extraction) {
       if (extraction.quality !== 'acceptable')
         throw new Error('The microscopic reference image has insufficient visible features. Upload a clearer image.')
@@ -26,11 +33,21 @@ export class MediaService {
         reportId,
         bytes: Buffer.from(extraction.descriptor_npy_base64, 'base64'),
       })
+      const referenceRoiPath = await this.media.uploadReferenceRoi({
+        userId,
+        reportId,
+        bytes: Buffer.from(extraction.roi_image_png_base64, 'base64'),
+      })
       await this.reports.saveFingerprint(reportId, {
         keypointCount: extraction.keypoint_count,
         fingerprintHash: extraction.fingerprint_hash,
         keypoints: extraction.keypoints,
-        metadata: { latency_ms: extraction.latency_ms },
+        metadata: {
+          latency_ms: extraction.latency_ms,
+          capture_frame: frame,
+          reference_roi_path: referenceRoiPath,
+          reference_roi_metadata: extraction.roi_metadata,
+        },
         algorithmVersion: extraction.algorithm_version,
         qualityScore: extraction.quality_score,
         referenceImageSha256: extraction.reference_image_sha256,

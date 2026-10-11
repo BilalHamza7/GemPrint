@@ -36,7 +36,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
     setOutcome(null)
     setIsVerifying(true)
     try {
-      setOutcome(await verifyReport(report.id, queryImage))
+      setOutcome(await verifyReport(report.id, queryImage, queryFrame))
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The verification could not be completed.')
     } finally {
@@ -147,6 +147,14 @@ function VerificationResult({ outcome }: { outcome: VerificationOutcome }) {
         <Metric
           label="Inlier ratio"
           value={result.inlier_ratio === undefined ? undefined : `${(result.inlier_ratio * 100).toFixed(1)}%`}
+        />
+        <Metric
+          label="Confidence"
+          value={result.confidence_score === undefined ? undefined : `${result.confidence_score.toFixed(1)}%`}
+        />
+        <Metric
+          label="Image quality"
+          value={result.quality_score === undefined ? undefined : `${result.quality_score.toFixed(1)}%`}
         />
         <Metric label="Processing time" value={`${result.latency_ms} ms`} />
       </dl>

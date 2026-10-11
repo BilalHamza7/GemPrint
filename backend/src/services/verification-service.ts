@@ -2,6 +2,7 @@ import { CvService } from './cv-service.js'
 import { MediaRepository } from '../repositories/media-repository.js'
 import { ReportRepository } from '../repositories/report-repository.js'
 import { ReportService } from './report-service.js'
+import type { MicroscopicImageFrame } from '../models/microscopic-frame.js'
 
 export class VerificationService {
   constructor(
@@ -11,7 +12,7 @@ export class VerificationService {
     private readonly reportService = new ReportService(),
   ) {}
 
-  async verify(userId: string, reportId: string, query: Express.Multer.File) {
+  async verify(userId: string, reportId: string, query: Express.Multer.File, queryFrame: MicroscopicImageFrame) {
     const report = (await this.reports.findForUser(reportId, userId)) as Record<string, unknown> | null
     if (!report) return null
     const referencePath = report.inclusion_image_path
@@ -25,18 +26,24 @@ export class VerificationService {
     const fingerprintData = fingerprint as Record<string, unknown>
     const descriptorPath = fingerprintData.descriptor_storage_reference
     const keypoints = fingerprintData.keypoint_metadata_json
-    if (typeof descriptorPath !== 'string' || !Array.isArray(keypoints)) {
+    const fingerprintMetadata = fingerprintData.fingerprint_metadata_json
+    const referenceRoiPath =
+      fingerprintMetadata && typeof fingerprintMetadata === 'object'
+        ? (fingerprintMetadata as Record<string, unknown>).reference_roi_path
+        : undefined
+    if (typeof descriptorPath !== 'string' || !Array.isArray(keypoints) || typeof referenceRoiPath !== 'string') {
       throw new Error('The enrolled fingerprint is incomplete. Upload the reference image again.')
     }
 
-    const reference = await this.media.download(referencePath)
+    const reference = await this.media.download(referenceRoiPath)
     const result = await this.cv.verify({
       query: query.buffer,
       queryContentType: query.mimetype,
       reference,
-      referenceContentType: this.media.contentTypeForPath(referencePath),
+      referenceContentType: 'image/png',
       referenceDescriptors: await this.media.download(descriptorPath),
       referenceKeypoints: keypoints,
+      queryFrame,
     })
     const queryImagePath = await this.media.uploadVerificationArtifact({
       userId,
@@ -45,6 +52,15 @@ export class VerificationService {
       bytes: query.buffer,
       contentType: query.mimetype,
     })
+    if (result.query_roi_png_base64) {
+      await this.media.uploadVerificationArtifact({
+        userId,
+        reportId,
+        kind: 'query-roi',
+        bytes: Buffer.from(result.query_roi_png_base64, 'base64'),
+        contentType: 'image/png',
+      })
+    }
     const resultVisualPath = result.match_proof_base64
       ? await this.media.uploadVerificationArtifact({
           userId,

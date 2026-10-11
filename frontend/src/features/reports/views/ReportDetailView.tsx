@@ -58,6 +58,7 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
     ['Dimensions', report.dimensions],
     ['Issued', report.issue_date],
   ]
+  const fingerprint = report.fingerprint_data[0]
   return (
     <section className="mx-auto max-w-5xl px-6 py-12">
       <button className="text-sm text-stone-400 hover:text-stone-200" onClick={onBack}>
@@ -157,7 +158,7 @@ export function ReportDetailView({ reportId, onBack }: { reportId: string; onBac
         <CaptureField label="Capture notes" value={report.micro_image_capture_notes} className="mt-4" />
       </article>
       <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <StatusCard title="Fingerprint" value={report.fingerprint_hash ? 'Fingerprint ready' : 'Extraction pending'} />
+        <FingerprintStatus fingerprint={fingerprint} isReady={Boolean(report.fingerprint_hash)} />
         <StatusCard title="Verification history" value={`${report.verification_logs.length} recorded result(s)`} />
       </div>
     </section>
@@ -178,6 +179,31 @@ function StatusCard({ title, value }: { title: string; value: string }) {
     <article className="rounded-xl border border-stone-800 p-5">
       <p className="text-xs uppercase tracking-wider text-stone-500">{title}</p>
       <p className="mt-2 text-sm font-medium text-stone-200">{value}</p>
+    </article>
+  )
+}
+
+function FingerprintStatus({
+  fingerprint,
+  isReady,
+}: {
+  fingerprint: ReportDetail['fingerprint_data'][number] | undefined
+  isReady: boolean
+}) {
+  if (!isReady || !fingerprint) return <StatusCard title="Fingerprint" value="Extraction pending" />
+
+  const metadata = fingerprint.preprocessing_metadata_json
+  const roiWidth = metadata.standard_roi_width
+  const roiHeight = metadata.standard_roi_height
+  return (
+    <article className="rounded-xl border border-emerald-900/70 bg-emerald-950/20 p-5">
+      <p className="text-xs uppercase tracking-wider text-emerald-300">Fingerprint ready</p>
+      <p className="mt-2 text-sm font-medium text-stone-100">
+        {fingerprint.keypoint_count} SIFT keypoints · quality {fingerprint.quality_score ?? '—'}%
+      </p>
+      <p className="mt-2 text-xs leading-5 text-stone-400">
+        {String(roiWidth ?? 1280)} × {String(roiHeight ?? 960)} standard ROI · {fingerprint.algorithm_version}
+      </p>
     </article>
   )
 }

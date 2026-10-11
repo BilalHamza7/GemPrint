@@ -1,5 +1,6 @@
 import { api } from '../../../lib/api'
 import type { CreateReportInput, GemstoneReport, ReportDetail } from '../types/report'
+import type { MicroscopicImageFrame } from '../../../components/MicroscopicImageCropper'
 
 export async function listReports(): Promise<GemstoneReport[]> {
   return (await api<{ reports: GemstoneReport[] }>('/api/reports')).reports
@@ -22,9 +23,10 @@ export async function updateReport(id: string, input: Partial<CreateReportInput>
     .report
 }
 export type MediaKind = 'macro' | 'inclusion'
-export async function uploadReportImage(id: string, kind: MediaKind, file: File) {
+export async function uploadReportImage(id: string, kind: MediaKind, file: File, frame?: MicroscopicImageFrame) {
   const body = new FormData()
   body.append('image', file)
+  if (frame) body.append('frame', JSON.stringify(frame))
   return api<{ media: { path: string } }>(`/api/reports/${id}/media/${kind}`, { method: 'POST', body })
 }
 export async function getReportImageUrl(id: string, kind: MediaKind) {
@@ -56,9 +58,10 @@ export type VerificationOutcome = {
   log: { id: string; verified_at: string }
 }
 
-export async function verifyReport(id: string, file: File): Promise<VerificationOutcome> {
+export async function verifyReport(id: string, file: File, frame: MicroscopicImageFrame): Promise<VerificationOutcome> {
   const body = new FormData()
   body.append('image', file)
+  body.append('frame', JSON.stringify(frame))
   return (
     await api<{ verification: VerificationOutcome }>(`/api/reports/${id}/verifications`, { method: 'POST', body })
   ).verification
