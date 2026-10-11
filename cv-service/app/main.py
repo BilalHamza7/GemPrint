@@ -110,14 +110,84 @@ def standardize_roi(image: np.ndarray, frame: dict[str, float]) -> tuple[np.ndar
 
 
 def extract_features(raw: bytes, frame: dict[str, float]) -> tuple[np.ndarray, list[cv2.KeyPoint], np.ndarray | None, dict[str, float | int]]:
+    roi, keypoints, descriptors, roi_metadata, _ = extract_features_with_timings(raw, frame)
+    return roi, keypoints, descriptors, roi_metadata
+
+
+def extract_features_with_timings(
+    raw: bytes, frame: dict[str, float]
+) -> tuple[np.ndarray, list[cv2.KeyPoint], np.ndarray | None, dict[str, float | int], dict[str, float]]:
+    """Run the production extraction steps and expose stage timings for offline evaluation."""
     image = decode_image(raw)
     roi, roi_metadata = standardize_roi(image, frame)
+    preprocessing_started = time.perf_counter()
+    normalized = preprocess(roi)
+    preprocessing_ms = (time.perf_counter() - preprocessing_started) * 1000
+    feature_extraction_started = time.perf_counter()
     keypoints, descriptors = cv2.SIFT_create(
         nfeatures=1500,
         contrastThreshold=0.03,
         edgeThreshold=10,
-    ).detectAndCompute(preprocess(roi), None)
-    return roi, keypoints, descriptors, roi_metadata
+    ).detectAndCompute(normalized, None)
+    feature_extraction_ms = (time.perf_counter() - feature_extraction_started) * 1000
+    return roi, keypoints, descriptors, roi_metadata, {
+        'preprocessing_ms': round(preprocessing_ms, 4),
+        'feature_extraction_ms': round(feature_extraction_ms, 4),
+    }
+
+
+def compare_features(
+    query_keypoints: list[cv2.KeyPoint],
+    query_descriptors: np.ndarray | None,
+    reference_keypoints: list[cv2.KeyPoint],
+    reference_descriptors: np.ndarray,
+) -> tuple[dict[str, float | int | str], list[cv2.DMatch], np.ndarray | None]:
+    """Apply the production FLANN and RANSAC decision rule without changing it."""
+    matching_started = time.perf_counter()
+    if (
+        query_descriptors is None
+        or len(reference_descriptors) < MINIMUM_KEYPOINTS
+        or len(query_keypoints) < MINIMUM_KEYPOINTS
+        or len(reference_keypoints) < MINIMUM_KEYPOINTS
+    ):
+        return (
+            {
+                'verdict': 'inconclusive',
+                'reason': 'Insufficient visible features for a reliable comparison.',
+                'good_match_count': 0,
+                'inlier_count': 0,
+                'inlier_ratio': 0.0,
+                'confidence_score': 0.0,
+                'matching_ms': round((time.perf_counter() - matching_started) * 1000, 4),
+            },
+            [],
+            None,
+        )
+
+    matcher = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=50))
+    candidate_pairs = matcher.knnMatch(query_descriptors, reference_descriptors, k=2)
+    good_matches = [first for first, second in candidate_pairs if first.distance < 0.75 * second.distance]
+    inlier_mask: np.ndarray | None = None
+    inliers = 0
+    if len(good_matches) >= MINIMUM_INLIERS:
+        source = np.float32([query_keypoints[match.queryIdx].pt for match in good_matches]).reshape(-1, 1, 2)
+        destination = np.float32([reference_keypoints[match.trainIdx].pt for match in good_matches]).reshape(-1, 1, 2)
+        _, inlier_mask = cv2.findHomography(source, destination, cv2.RANSAC, 5.0)
+        inliers = int(inlier_mask.sum()) if inlier_mask is not None else 0
+
+    ratio = inliers / len(good_matches) if good_matches else 0
+    return (
+        {
+            'verdict': 'verified' if inliers >= MINIMUM_INLIERS and ratio >= MINIMUM_INLIER_RATIO else 'not_verified',
+            'good_match_count': len(good_matches),
+            'inlier_count': inliers,
+            'inlier_ratio': round(ratio, 4),
+            'confidence_score': round(ratio * 100, 2),
+            'matching_ms': round((time.perf_counter() - matching_started) * 1000, 4),
+        },
+        good_matches,
+        inlier_mask,
+    )
 
 
 def sha256(raw: bytes) -> str:
@@ -266,58 +336,32 @@ async def verify_fingerprint(
     reference_keypoints = restore_keypoints(reference_keypoints_json)
     enrolled_descriptors = load_descriptors(await reference_descriptors.read())
 
-    if (
-        query_descriptors is None
-        or len(enrolled_descriptors) < MINIMUM_KEYPOINTS
-        or len(query_keypoints) < MINIMUM_KEYPOINTS
-        or len(reference_keypoints) < MINIMUM_KEYPOINTS
-    ):
-        return {
-            'verdict': 'inconclusive',
-            'reason': 'Insufficient visible features for a reliable comparison.',
-            'quality_score': min(quality_score(len(query_keypoints)), quality_score(len(reference_keypoints))),
-            'query_image_sha256': sha256(query_raw),
-            'reference_image_sha256': sha256(reference_raw),
-            'latency_ms': round((time.perf_counter() - started) * 1000, 2),
-            'algorithm_version': ALGORITHM_VERSION,
-            'query_roi_png_base64': serialize_png(query_image),
-            'query_roi_metadata': query_roi_metadata,
-        }
-
-    matcher = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=50))
-    candidate_pairs = matcher.knnMatch(query_descriptors, enrolled_descriptors, k=2)
-    good_matches = [first for first, second in candidate_pairs if first.distance < 0.75 * second.distance]
-    inlier_mask: np.ndarray | None = None
-    inliers = 0
-    if len(good_matches) >= MINIMUM_INLIERS:
-        source = np.float32([query_keypoints[match.queryIdx].pt for match in good_matches]).reshape(-1, 1, 2)
-        destination = np.float32([reference_keypoints[match.trainIdx].pt for match in good_matches]).reshape(-1, 1, 2)
-        _, inlier_mask = cv2.findHomography(source, destination, cv2.RANSAC, 5.0)
-        inliers = int(inlier_mask.sum()) if inlier_mask is not None else 0
-
-    ratio = inliers / len(good_matches) if good_matches else 0
-    return {
-        'verdict': 'verified' if inliers >= MINIMUM_INLIERS and ratio >= MINIMUM_INLIER_RATIO else 'not_verified',
-        'good_match_count': len(good_matches),
-        'inlier_count': inliers,
-        'inlier_ratio': round(ratio, 4),
-        'confidence_score': round(ratio * 100, 2),
+    comparison, good_matches, inlier_mask = compare_features(
+        query_keypoints,
+        query_descriptors,
+        reference_keypoints,
+        enrolled_descriptors,
+    )
+    response = {
+        **comparison,
         'quality_score': min(quality_score(len(query_keypoints)), quality_score(len(reference_keypoints))),
         'query_image_sha256': sha256(query_raw),
         'reference_image_sha256': sha256(reference_raw),
         'latency_ms': round((time.perf_counter() - started) * 1000, 2),
         'algorithm_version': ALGORITHM_VERSION,
-        'match_proof_base64': match_proof(
+        'query_roi_png_base64': serialize_png(query_image),
+        'query_roi_metadata': query_roi_metadata,
+    }
+    if comparison['verdict'] != 'inconclusive':
+        response['match_proof_base64'] = match_proof(
             query_image,
             query_keypoints,
             reference_image,
             reference_keypoints,
             good_matches,
             inlier_mask,
-        ),
-        'query_roi_png_base64': serialize_png(query_image),
-        'query_roi_metadata': query_roi_metadata,
-    }
+        )
+    return response
 
 
 @app.post('/benchmark', dependencies=[Depends(require_internal_key)])
