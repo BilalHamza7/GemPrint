@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { MicroscopicImageCropper, type MicroscopicImageFrame } from '../../../components/MicroscopicImageCropper'
 import { findReportBySerial, verifyReport, type VerificationOutcome } from '../../reports/api/reportsApi'
 
 export function VerificationView({ onBack, onOpenReport }: { onBack: () => void; onOpenReport: (id: string) => void }) {
   const [serialNumber, setSerialNumber] = useState('')
   const [queryImage, setQueryImage] = useState<File | null>(null)
+  const [queryFrame, setQueryFrame] = useState<MicroscopicImageFrame | null>(null)
   const [error, setError] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
@@ -29,6 +31,7 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
   async function submitVerification() {
     if (!report) return
     if (!queryImage) return setError('Select the new microscopic query image to compare.')
+    if (!queryFrame) return setError('Position and confirm the standard microscopic fingerprint frame to compare.')
     setError('')
     setOutcome(null)
     setIsVerifying(true)
@@ -90,18 +93,17 @@ export function VerificationView({ onBack, onOpenReport }: { onBack: () => void;
               </p>
             ) : (
               <>
-                <label className="mt-5 block text-sm text-stone-300">
-                  New microscopic query image
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    onChange={(event) => setQueryImage(event.target.files?.[0] ?? null)}
-                    className="mt-2 block w-full text-sm text-stone-400 file:mr-3 file:rounded-md file:border-0 file:bg-stone-800 file:px-3 file:py-2 file:text-stone-200"
-                  />
-                </label>
+                <MicroscopicImageCropper
+                  label="Microscopic query image"
+                  helperText="Choose a new microscope image and position the same physical inclusion inside the standard fingerprint frame."
+                  file={queryImage}
+                  onFileChange={setQueryImage}
+                  frame={queryFrame}
+                  onFrameChange={setQueryFrame}
+                />
                 <button
                   type="button"
-                  disabled={isVerifying || !queryImage}
+                  disabled={isVerifying || !queryImage || !queryFrame}
                   onClick={() => void submitVerification()}
                   className="mt-4 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-stone-950 disabled:opacity-60"
                 >

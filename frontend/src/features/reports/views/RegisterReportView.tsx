@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { MicroscopicImageCropper, type MicroscopicImageFrame } from '../../../components/MicroscopicImageCropper'
 import { createReport, uploadReportImage } from '../api/reportsApi'
 
 export function RegisterReportView({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [referenceImage, setReferenceImage] = useState<File | null>(null)
+  const [referenceFrame, setReferenceFrame] = useState<MicroscopicImageFrame | null>(null)
   async function submit(form: HTMLFormElement) {
     const data = new FormData(form)
     setError('')
@@ -27,11 +30,10 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
         microImageCaptureNotes: String(data.get('microImageCaptureNotes') ?? '').trim() || undefined,
       })
       const mainImage = data.get('mainImage')
-      const fingerprintImage = data.get('fingerprintImage')
       if (mainImage instanceof File && mainImage.size > 0) await uploadReportImage(report.id, 'macro', mainImage)
-      if (!(fingerprintImage instanceof File) || fingerprintImage.size === 0)
-        throw new Error('A microscopic fingerprint reference image is required for enrollment.')
-      await uploadReportImage(report.id, 'inclusion', fingerprintImage)
+      if (!referenceImage) throw new Error('A microscopic fingerprint reference image is required for enrollment.')
+      if (!referenceFrame) throw new Error('Position and confirm the standard microscopic fingerprint frame to enroll.')
+      await uploadReportImage(report.id, 'inclusion', referenceImage)
       onComplete()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The report could not be saved.')
@@ -99,17 +101,15 @@ export function RegisterReportView({ onComplete, onCancel }: { onComplete: () =>
               className="mt-1.5 block w-full text-sm text-stone-400 file:mr-3 file:rounded-md file:border-0 file:bg-stone-800 file:px-3 file:py-2 file:text-stone-200"
             />
           </label>
-          <label className="block text-sm text-stone-300">
-            Microscopic fingerprint reference image
-            <input
-              name="fingerprintImage"
-              type="file"
-              accept="image/jpeg,image/png"
-              required
-              className="mt-1.5 block w-full text-sm text-stone-400 file:mr-3 file:rounded-md file:border-0 file:bg-stone-800 file:px-3 file:py-2 file:text-stone-200"
-            />
-          </label>
         </div>
+        <MicroscopicImageCropper
+          label="Microscopic fingerprint reference"
+          helperText="Choose the original microscopic image, then position the distinctive inclusion inside the standard fingerprint frame."
+          file={referenceImage}
+          onFileChange={setReferenceImage}
+          frame={referenceFrame}
+          onFrameChange={setReferenceFrame}
+        />
         <fieldset className="mt-7 border-t border-stone-800 pt-6">
           <legend className="text-sm font-semibold tracking-[0.12em] text-amber-400">
             MICRO IMAGE CAPTURE CONTEXT
