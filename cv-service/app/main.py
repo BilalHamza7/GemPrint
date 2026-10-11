@@ -79,9 +79,8 @@ def parse_frame(frame_json: str) -> dict[str, float]:
         or height <= 0
         or x + width > 1.001
         or y + height > 1.001
-        or abs(width / height - ROI_ASPECT_RATIO) > 0.02
     ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Microscopic image frame must be a valid 4:3 window.')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Microscopic image frame is invalid.')
     return {'x': x, 'y': y, 'width': width, 'height': height}
 
 

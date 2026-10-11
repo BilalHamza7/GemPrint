@@ -11,7 +11,6 @@ export type MicroscopicImageFrame = {
 
 // Compatibility fallback for older profile-image uploads that have no confirmed window.
 const DEFAULT_FRAME: MicroscopicImageFrame = { x: 0.125, y: 0.21875, width: 0.75, height: 0.5625 }
-const TARGET_ASPECT_RATIO = 4 / 3
 
 export function parseMicroscopicImageFrame(value: unknown): MicroscopicImageFrame {
   if (value === undefined || value === null || value === '') return DEFAULT_FRAME
@@ -48,9 +47,6 @@ export function parseMicroscopicImageFrame(value: unknown): MicroscopicImageFram
   ) {
     throw new Error('The microscopic image frame is invalid.')
   }
-
-  if (Math.abs(width / height - TARGET_ASPECT_RATIO) > 0.02)
-    throw new Error('The microscopic image frame must use the standard 4:3 view.')
 
   return { x, y, width, height }
 }

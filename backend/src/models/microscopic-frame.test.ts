@@ -15,9 +15,9 @@ describe('parseMicroscopicImageFrame', () => {
     })
   })
 
-  it('rejects a window with the wrong aspect ratio', () => {
-    expect(() => parseMicroscopicImageFrame(JSON.stringify({ x: 0, y: 0, width: 0.5, height: 0.5 }))).toThrow(
-      'standard 4:3 view',
+  it('rejects a window which extends beyond the source image', () => {
+    expect(() => parseMicroscopicImageFrame(JSON.stringify({ x: 0.8, y: 0, width: 0.4, height: 0.3 }))).toThrow(
+      'invalid',
     )
   })
 })
