@@ -80,7 +80,9 @@ export class VerificationService {
       resultVisualPath,
       queryImageSha256: result.query_image_sha256,
       referenceImageSha256: result.reference_image_sha256,
-      latencyMs: result.latency_ms,
+      // The audit column stores whole milliseconds. Keep the CV response
+      // precise for the client, but persist its nearest millisecond safely.
+      latencyMs: Math.round(result.latency_ms),
       algorithmVersion: result.algorithm_version,
     })
     return { result: { ...result, match_proof_base64: undefined }, log }
