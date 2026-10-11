@@ -16,6 +16,15 @@ export class MediaRepository {
     return path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'
   }
 
+  async uploadReferenceDescriptors(input: { userId: string; reportId: string; bytes: Buffer }) {
+    const path = `${input.userId}/reports/${input.reportId}/fingerprints/reference-descriptors.npy`
+    const { error } = await getSupabaseAdminClient()
+      .storage.from(BUCKET)
+      .upload(path, input.bytes, { contentType: 'application/octet-stream', upsert: true })
+    if (error) throw new Error(error.message)
+    return path
+  }
+
   async uploadVerificationArtifact(input: {
     userId: string
     reportId: string

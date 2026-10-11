@@ -13,11 +13,19 @@ export class MediaService {
   async upload(userId: string, reportId: string, kind: MediaKind, file: Express.Multer.File) {
     const report = await this.reports.findForUser(reportId, userId)
     if (!report) return null
-    const uploaded = await this.media.uploadReportImage({ userId, reportId, kind, file })
-    if (kind === 'inclusion') {
-      const extraction = await this.cv.extractReference(file.buffer, file.mimetype)
+    const extraction = kind === 'inclusion' ? await this.cv.extractReference(file.buffer, file.mimetype) : null
+    if (extraction) {
       if (extraction.quality !== 'acceptable')
         throw new Error('The microscopic reference image has insufficient visible features. Upload a clearer image.')
+    }
+
+    const uploaded = await this.media.uploadReportImage({ userId, reportId, kind, file })
+    if (extraction) {
+      const descriptorStorageReference = await this.media.uploadReferenceDescriptors({
+        userId,
+        reportId,
+        bytes: Buffer.from(extraction.descriptor_npy_base64, 'base64'),
+      })
       await this.reports.saveFingerprint(reportId, {
         keypointCount: extraction.keypoint_count,
         fingerprintHash: extraction.fingerprint_hash,
@@ -27,6 +35,7 @@ export class MediaService {
         qualityScore: extraction.quality_score,
         referenceImageSha256: extraction.reference_image_sha256,
         preprocessingMetadata: extraction.preprocessing_metadata,
+        descriptorStorageReference,
       })
     }
     return uploaded

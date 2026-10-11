@@ -18,14 +18,26 @@ export class VerificationService {
     if (typeof referencePath !== 'string' || !referencePath) {
       throw new Error('This report does not have a microscopic reference image.')
     }
+    const fingerprint = Array.isArray(report.fingerprint_data) ? report.fingerprint_data[0] : null
+    if (!fingerprint || typeof fingerprint !== 'object') {
+      throw new Error('This report does not have enrolled fingerprint data. Upload the reference image again.')
+    }
+    const fingerprintData = fingerprint as Record<string, unknown>
+    const descriptorPath = fingerprintData.descriptor_storage_reference
+    const keypoints = fingerprintData.keypoint_metadata_json
+    if (typeof descriptorPath !== 'string' || !Array.isArray(keypoints)) {
+      throw new Error('The enrolled fingerprint is incomplete. Upload the reference image again.')
+    }
 
     const reference = await this.media.download(referencePath)
-    const result = await this.cv.verify(
-      query.buffer,
-      query.mimetype,
+    const result = await this.cv.verify({
+      query: query.buffer,
+      queryContentType: query.mimetype,
       reference,
-      this.media.contentTypeForPath(referencePath),
-    )
+      referenceContentType: this.media.contentTypeForPath(referencePath),
+      referenceDescriptors: await this.media.download(descriptorPath),
+      referenceKeypoints: keypoints,
+    })
     const queryImagePath = await this.media.uploadVerificationArtifact({
       userId,
       reportId,

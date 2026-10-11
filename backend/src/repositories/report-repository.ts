@@ -133,6 +133,7 @@ export class ReportRepository {
           quality_score: input.qualityScore ?? null,
           reference_image_sha256: input.referenceImageSha256 ?? null,
           preprocessing_metadata_json: input.preprocessingMetadata ?? {},
+          descriptor_storage_reference: input.descriptorStorageReference ?? null,
         },
         { onConflict: 'gemstone_report_id' },
       )

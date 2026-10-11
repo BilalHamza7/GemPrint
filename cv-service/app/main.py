@@ -1,10 +1,12 @@
 import base64
 import hashlib
+import io
+import json
 import time
 
 import cv2
 import numpy as np
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
 
 from .core.config import INTERNAL_SERVICE_KEY
 
@@ -64,6 +66,42 @@ def quality_score(keypoint_count: int) -> float:
     return round(min(100, keypoint_count / 5), 2)
 
 
+def serialize_descriptors(descriptors: np.ndarray | None) -> str:
+    stream = io.BytesIO()
+    np.save(stream, descriptors if descriptors is not None else np.empty((0, 128), dtype=np.float32), allow_pickle=False)
+    return base64.b64encode(stream.getvalue()).decode('ascii')
+
+
+def load_descriptors(raw: bytes) -> np.ndarray:
+    try:
+        descriptors = np.load(io.BytesIO(raw), allow_pickle=False)
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unreadable enrolled descriptor artifact.') from error
+    if descriptors.ndim != 2 or descriptors.shape[1] != 128:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid enrolled descriptor artifact.')
+    return descriptors.astype(np.float32)
+
+
+def restore_keypoints(value: str) -> list[cv2.KeyPoint]:
+    try:
+        metadata = json.loads(value)
+        if not isinstance(metadata, list):
+            raise ValueError('Keypoint metadata must be an array.')
+        return [
+            cv2.KeyPoint(
+                float(point['x']),
+                float(point['y']),
+                float(point['size']),
+                float(point.get('angle', -1)),
+                float(point.get('response', 0)),
+                int(point.get('octave', 0)),
+            )
+            for point in metadata
+        ]
+    except (KeyError, TypeError, ValueError) as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid enrolled keypoint metadata.') from error
+
+
 def match_proof(
     query_image: np.ndarray,
     query_keypoints: list[cv2.KeyPoint],
@@ -118,20 +156,28 @@ async def extract_fingerprint(image: UploadFile = File(...)) -> dict:
             'sift_nfeatures': 1500,
         },
         'algorithm_version': ALGORITHM_VERSION,
+        'descriptor_npy_base64': serialize_descriptors(descriptors),
     }
 
 
 @app.post('/verify-fingerprint', dependencies=[Depends(require_internal_key)])
-async def verify_fingerprint(query: UploadFile = File(...), reference: UploadFile = File(...)) -> dict:
+async def verify_fingerprint(
+    query: UploadFile = File(...),
+    reference: UploadFile = File(...),
+    reference_descriptors: UploadFile = File(...),
+    reference_keypoints_json: str = Form(...),
+) -> dict:
     started = time.perf_counter()
     query_raw = await query.read()
     reference_raw = await reference.read()
     query_image, query_keypoints, query_descriptors = extract_features(query_raw)
-    reference_image, reference_keypoints, reference_descriptors = extract_features(reference_raw)
+    reference_image = decode_image(reference_raw)
+    reference_keypoints = restore_keypoints(reference_keypoints_json)
+    enrolled_descriptors = load_descriptors(await reference_descriptors.read())
 
     if (
         query_descriptors is None
-        or reference_descriptors is None
+        or len(enrolled_descriptors) < MINIMUM_KEYPOINTS
         or len(query_keypoints) < MINIMUM_KEYPOINTS
         or len(reference_keypoints) < MINIMUM_KEYPOINTS
     ):
@@ -146,7 +192,7 @@ async def verify_fingerprint(query: UploadFile = File(...), reference: UploadFil
         }
 
     matcher = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=50))
-    candidate_pairs = matcher.knnMatch(query_descriptors, reference_descriptors, k=2)
+    candidate_pairs = matcher.knnMatch(query_descriptors, enrolled_descriptors, k=2)
     good_matches = [first for first, second in candidate_pairs if first.distance < 0.75 * second.distance]
     inlier_mask: np.ndarray | None = None
     inliers = 0

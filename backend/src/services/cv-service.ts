@@ -10,6 +10,7 @@ export type ExtractionResult = {
   reference_image_sha256: string
   preprocessing_metadata: Record<string, unknown>
   algorithm_version: string
+  descriptor_npy_base64: string
 }
 
 export type VerificationResult = {
@@ -37,15 +38,36 @@ export class CvService {
     })
   }
 
-  async verify(query: Buffer, queryContentType: string, reference: Buffer, referenceContentType: string) {
-    return this.post<VerificationResult>('/verify-fingerprint', {
-      query: { bytes: query, contentType: queryContentType, filename: 'query-image' },
-      reference: { bytes: reference, contentType: referenceContentType, filename: 'reference-image' },
-    })
+  async verify(input: {
+    query: Buffer
+    queryContentType: string
+    reference: Buffer
+    referenceContentType: string
+    referenceDescriptors: Buffer
+    referenceKeypoints: unknown[]
+  }) {
+    return this.post<VerificationResult>(
+      '/verify-fingerprint',
+      {
+        query: { bytes: input.query, contentType: input.queryContentType, filename: 'query-image' },
+        reference: { bytes: input.reference, contentType: input.referenceContentType, filename: 'reference-image' },
+        referenceDescriptors: {
+          bytes: input.referenceDescriptors,
+          contentType: 'application/octet-stream',
+          filename: 'reference-descriptors.npy',
+        },
+      },
+      { reference_keypoints_json: JSON.stringify(input.referenceKeypoints) },
+    )
   }
 
-  private async post<T>(path: string, files: Record<string, { bytes: Buffer; contentType: string; filename: string }>) {
+  private async post<T>(
+    path: string,
+    files: Record<string, { bytes: Buffer; contentType: string; filename: string }>,
+    fields: Record<string, string> = {},
+  ) {
     const form = new FormData()
+    for (const [field, value] of Object.entries(fields)) form.append(field, value)
     for (const [field, file] of Object.entries(files)) {
       form.append(field, new Blob([Uint8Array.from(file.bytes)], { type: file.contentType }), file.filename)
     }

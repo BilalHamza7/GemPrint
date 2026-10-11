@@ -50,6 +50,7 @@ export type FingerprintInput = {
   qualityScore?: number | null
   referenceImageSha256?: string
   preprocessingMetadata?: Record<string, unknown>
+  descriptorStorageReference?: string
 }
 
 export type VerificationInput = {
