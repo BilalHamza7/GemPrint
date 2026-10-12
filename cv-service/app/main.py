@@ -144,6 +144,12 @@ def compare_features(
 ) -> tuple[dict[str, float | int | str], list[cv2.DMatch], np.ndarray | None]:
     """Apply the production FLANN and RANSAC decision rule without changing it."""
     matching_started = time.perf_counter()
+
+    # FLANN and RANSAC can use OpenCV's internal random generator. Reset it for
+    # each comparison so an identical pair produces an identical decision; this
+    # matches the reproducible 900-comparison evaluation protocol.
+    cv2.setRNGSeed(42)
+
     if (
         query_descriptors is None
         or reference_descriptors is None
