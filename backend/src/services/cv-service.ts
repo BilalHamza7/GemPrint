@@ -13,6 +13,10 @@ export type ExtractionResult = {
   quality_score: number
   reference_image_sha256: string
   preprocessing_metadata: Record<string, unknown>
+  processing_timings_ms?: {
+    preprocessing_ms: number
+    feature_extraction_ms: number
+  }
   algorithm_version: string
   descriptor_npy_base64: string
   roi_image_png_base64: string
@@ -34,6 +38,16 @@ export type VerificationResult = {
   match_proof_base64?: string
   query_roi_png_base64?: string
   query_roi_metadata?: Record<string, unknown>
+  processing_timings_ms?: {
+    preprocessing_ms: number
+    feature_extraction_ms: number
+    matching_ms: number
+  }
+  decision_rule?: {
+    minimum_keypoints: number
+    minimum_inliers: number
+    inlier_ratio_threshold: number
+  }
 }
 
 type CvErrorPayload = {

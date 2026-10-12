@@ -15,11 +15,21 @@ ALGORITHM_VERSION = 'sift-clahe-v1'
 MINIMUM_KEYPOINTS = 10
 MINIMUM_INLIERS = 10
 MINIMUM_INLIER_RATIO = 0.5
+OPENCV_RANDOM_SEED = 42
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MAX_PROCESSING_DIMENSION = 2048
 ROI_WIDTH = 1280
 ROI_HEIGHT = 960
 ROI_ASPECT_RATIO = ROI_WIDTH / ROI_HEIGHT
+CLAHE_CLIP_LIMIT = 2.0
+CLAHE_TILE_GRID = (8, 8)
+SIFT_NFEATURES = 1500
+SIFT_CONTRAST_THRESHOLD = 0.03
+SIFT_EDGE_THRESHOLD = 10
+FLANN_TREES = 5
+FLANN_CHECKS = 50
+LOWE_RATIO = 0.75
+RANSAC_REPROJECTION_THRESHOLD = 5.0
 
 # A single worker/thread avoids OpenCV allocating extra working memory on Render's 512 MB service.
 cv2.setNumThreads(1)
@@ -52,7 +62,10 @@ async def read_image_upload(upload: UploadFile) -> bytes:
 
 
 def preprocess(image: np.ndarray) -> np.ndarray:
-    return cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(image)
+    return cv2.createCLAHE(
+        clipLimit=CLAHE_CLIP_LIMIT,
+        tileGridSize=CLAHE_TILE_GRID,
+    ).apply(image)
 
 
 def parse_frame(frame_json: str) -> dict[str, float]:
@@ -125,9 +138,9 @@ def extract_features_with_timings(
     preprocessing_ms = (time.perf_counter() - preprocessing_started) * 1000
     feature_extraction_started = time.perf_counter()
     keypoints, descriptors = cv2.SIFT_create(
-        nfeatures=1500,
-        contrastThreshold=0.03,
-        edgeThreshold=10,
+        nfeatures=SIFT_NFEATURES,
+        contrastThreshold=SIFT_CONTRAST_THRESHOLD,
+        edgeThreshold=SIFT_EDGE_THRESHOLD,
     ).detectAndCompute(normalized, None)
     feature_extraction_ms = (time.perf_counter() - feature_extraction_started) * 1000
     return roi, keypoints, descriptors, roi_metadata, {
@@ -148,11 +161,12 @@ def compare_features(
     # FLANN and RANSAC can use OpenCV's internal random generator. Reset it for
     # each comparison so an identical pair produces an identical decision; this
     # matches the reproducible 900-comparison evaluation protocol.
-    cv2.setRNGSeed(42)
+    cv2.setRNGSeed(OPENCV_RANDOM_SEED)
 
     if (
         query_descriptors is None
         or reference_descriptors is None
+        or len(query_descriptors) < MINIMUM_KEYPOINTS
         or len(reference_descriptors) < MINIMUM_KEYPOINTS
         or len(query_keypoints) < MINIMUM_KEYPOINTS
         or len(reference_keypoints) < MINIMUM_KEYPOINTS
@@ -171,15 +185,27 @@ def compare_features(
             None,
         )
 
-    matcher = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=50))
+    matcher = cv2.FlannBasedMatcher(
+        dict(algorithm=1, trees=FLANN_TREES),
+        dict(checks=FLANN_CHECKS),
+    )
     candidate_pairs = matcher.knnMatch(query_descriptors, reference_descriptors, k=2)
-    good_matches = [first for first, second in candidate_pairs if first.distance < 0.75 * second.distance]
+    good_matches = [
+        first
+        for first, second in candidate_pairs
+        if first.distance < LOWE_RATIO * second.distance
+    ]
     inlier_mask: np.ndarray | None = None
     inliers = 0
     if len(good_matches) >= MINIMUM_INLIERS:
         source = np.float32([query_keypoints[match.queryIdx].pt for match in good_matches]).reshape(-1, 1, 2)
         destination = np.float32([reference_keypoints[match.trainIdx].pt for match in good_matches]).reshape(-1, 1, 2)
-        _, inlier_mask = cv2.findHomography(source, destination, cv2.RANSAC, 5.0)
+        _, inlier_mask = cv2.findHomography(
+            source,
+            destination,
+            cv2.RANSAC,
+            RANSAC_REPROJECTION_THRESHOLD,
+        )
         inliers = int(inlier_mask.sum()) if inlier_mask is not None else 0
 
     ratio = inliers / len(good_matches) if good_matches else 0
@@ -217,6 +243,27 @@ def metadata_for(keypoints: list[cv2.KeyPoint]) -> list[dict[str, float | int]]:
 
 def quality_score(keypoint_count: int) -> float:
     return round(min(100, keypoint_count / 5), 2)
+
+
+def pipeline_metadata() -> dict[str, float | int | list[int]]:
+    """Expose the fixed production parameters alongside service responses."""
+    return {
+        'opencv_random_seed': OPENCV_RANDOM_SEED,
+        'clahe_clip_limit': CLAHE_CLIP_LIMIT,
+        'clahe_tile_grid': list(CLAHE_TILE_GRID),
+        'sift_nfeatures': SIFT_NFEATURES,
+        'sift_contrast_threshold': SIFT_CONTRAST_THRESHOLD,
+        'sift_edge_threshold': SIFT_EDGE_THRESHOLD,
+        'flann_trees': FLANN_TREES,
+        'flann_checks': FLANN_CHECKS,
+        'lowe_ratio': LOWE_RATIO,
+        'ransac_reprojection_threshold': RANSAC_REPROJECTION_THRESHOLD,
+        'minimum_keypoints': MINIMUM_KEYPOINTS,
+        'minimum_inliers': MINIMUM_INLIERS,
+        'inlier_ratio_threshold': MINIMUM_INLIER_RATIO,
+        'standard_roi_width': ROI_WIDTH,
+        'standard_roi_height': ROI_HEIGHT,
+    }
 
 
 def serialize_descriptors(descriptors: np.ndarray | None) -> str:
@@ -287,15 +334,23 @@ def match_proof(
 
 
 @app.get('/health')
-def health() -> dict[str, str]:
-    return {'status': 'ok', 'service': 'gemprint-cv-engine'}
+def health() -> dict:
+    return {
+        'status': 'ok',
+        'service': 'gemprint-cv-engine',
+        'algorithm_version': ALGORITHM_VERSION,
+        'pipeline': pipeline_metadata(),
+    }
 
 
 @app.post('/extract-fingerprint', dependencies=[Depends(require_internal_key)])
 async def extract_fingerprint(image: UploadFile = File(...), frame_json: str = Form(...)) -> dict:
     started = time.perf_counter()
     raw = await read_image_upload(image)
-    roi, keypoints, descriptors, roi_metadata = extract_features(raw, parse_frame(frame_json))
+    roi, keypoints, descriptors, roi_metadata, timings = extract_features_with_timings(
+        raw,
+        parse_frame(frame_json),
+    )
     points = metadata_for(keypoints)
     fingerprint = hashlib.sha256(
         (str(points) + (descriptors.tobytes().hex() if descriptors is not None else '')).encode()
@@ -311,13 +366,10 @@ async def extract_fingerprint(image: UploadFile = File(...), frame_json: str = F
         'reference_image_sha256': sha256(raw),
         'preprocessing_metadata': {
             'colour_space': 'grayscale',
-            'clahe_clip_limit': 2.0,
-            'clahe_tile_grid': [8, 8],
-            'sift_nfeatures': 1500,
             'max_processing_dimension': MAX_PROCESSING_DIMENSION,
-            'standard_roi_width': ROI_WIDTH,
-            'standard_roi_height': ROI_HEIGHT,
+            **pipeline_metadata(),
         },
+        'processing_timings_ms': timings,
         'algorithm_version': ALGORITHM_VERSION,
         'descriptor_npy_base64': serialize_descriptors(descriptors),
         'roi_image_png_base64': serialize_png(roi),
@@ -336,8 +388,9 @@ async def verify_fingerprint(
     started = time.perf_counter()
     query_raw = await read_image_upload(query)
     reference_raw = await read_image_upload(reference)
-    query_image, query_keypoints, query_descriptors, query_roi_metadata = extract_features(
-        query_raw, parse_frame(query_frame_json)
+    query_image, query_keypoints, query_descriptors, query_roi_metadata, query_timings = extract_features_with_timings(
+        query_raw,
+        parse_frame(query_frame_json),
     )
     reference_image = decode_image(reference_raw)
     reference_keypoints = restore_keypoints(reference_keypoints_json)
@@ -356,6 +409,15 @@ async def verify_fingerprint(
         'reference_image_sha256': sha256(reference_raw),
         'latency_ms': round((time.perf_counter() - started) * 1000, 2),
         'algorithm_version': ALGORITHM_VERSION,
+        'processing_timings_ms': {
+            **query_timings,
+            'matching_ms': comparison['matching_ms'],
+        },
+        'decision_rule': {
+            'minimum_keypoints': MINIMUM_KEYPOINTS,
+            'minimum_inliers': MINIMUM_INLIERS,
+            'inlier_ratio_threshold': MINIMUM_INLIER_RATIO,
+        },
         'query_roi_png_base64': serialize_png(query_image),
         'query_roi_metadata': query_roi_metadata,
     }
