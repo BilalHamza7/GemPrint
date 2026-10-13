@@ -189,29 +189,55 @@ def compare_features(
         dict(algorithm=1, trees=FLANN_TREES),
         dict(checks=FLANN_CHECKS),
     )
-    candidate_pairs = matcher.knnMatch(query_descriptors, reference_descriptors, k=2)
+
+    try:
+        candidate_pairs = matcher.knnMatch(
+            query_descriptors,
+            reference_descriptors,
+            k=2,
+        )
+    except cv2.error:
+        candidate_pairs = []
+
     good_matches = [
-        first
-        for first, second in candidate_pairs
-        if first.distance < LOWE_RATIO * second.distance
+        pair[0]
+        for pair in candidate_pairs
+        if len(pair) == 2 and pair[0].distance < LOWE_RATIO * pair[1].distance
     ]
     inlier_mask: np.ndarray | None = None
     inliers = 0
     if len(good_matches) >= MINIMUM_INLIERS:
         source = np.float32([query_keypoints[match.queryIdx].pt for match in good_matches]).reshape(-1, 1, 2)
         destination = np.float32([reference_keypoints[match.trainIdx].pt for match in good_matches]).reshape(-1, 1, 2)
-        _, inlier_mask = cv2.findHomography(
-            source,
-            destination,
-            cv2.RANSAC,
-            RANSAC_REPROJECTION_THRESHOLD,
-        )
-        inliers = int(inlier_mask.sum()) if inlier_mask is not None else 0
+        try:
+            _, inlier_mask = cv2.findHomography(
+                source,
+                destination,
+                cv2.RANSAC,
+                RANSAC_REPROJECTION_THRESHOLD,
+            )
+            inliers = int(inlier_mask.sum()) if inlier_mask is not None else 0
+        except cv2.error:
+            # A geometrically degenerate set of correspondences is not a
+            # service failure. It is evidence that this query cannot verify
+            # the enrolled microscopic fingerprint.
+            inlier_mask = None
+            inliers = 0
 
     ratio = inliers / len(good_matches) if good_matches else 0
+    verified = (
+        inliers >= MINIMUM_INLIERS
+        and ratio >= MINIMUM_INLIER_RATIO
+    )
+
     return (
         {
-            'verdict': 'verified' if inliers >= MINIMUM_INLIERS and ratio >= MINIMUM_INLIER_RATIO else 'not_verified',
+            'verdict': 'verified' if verified else 'not_verified',
+            'reason': (
+                None
+                if verified
+                else 'The image did not contain enough geometrically consistent features to verify this gemstone.'
+            ),
             'good_match_count': len(good_matches),
             'inlier_count': inliers,
             'inlier_ratio': round(ratio, 4),
@@ -421,7 +447,10 @@ async def verify_fingerprint(
         'query_roi_png_base64': serialize_png(query_image),
         'query_roi_metadata': query_roi_metadata,
     }
-    if comparison['verdict'] != 'inconclusive':
+    # Match proof is evidence for an accepted decision only. A non-match can
+    # legitimately have no stable correspondence set, so drawing one would
+    # add no value and can fail for degenerate OpenCV match geometry.
+    if comparison['verdict'] == 'verified':
         response['match_proof_base64'] = match_proof(
             query_image,
             query_keypoints,
