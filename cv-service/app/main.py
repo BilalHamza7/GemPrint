@@ -342,21 +342,30 @@ def match_proof(
     reference_keypoints: list[cv2.KeyPoint],
     matches: list[cv2.DMatch],
     inlier_mask: np.ndarray | None,
-) -> str:
-    drawing = cv2.drawMatches(
-        query_image,
-        query_keypoints,
-        reference_image,
-        reference_keypoints,
-        matches,
-        None,
-        matchesMask=inlier_mask.ravel().tolist() if inlier_mask is not None else None,
-        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
-    )
-    ok, encoded = cv2.imencode('.png', drawing)
-    if not ok:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not create match proof.')
-    return base64.b64encode(encoded.tobytes()).decode('ascii')
+) -> str | None:
+    """Create optional visual evidence without changing a verification decision.
+
+    A valid comparison must still be returned if OpenCV cannot render an image
+    for a particular correspondence geometry. The evidence image is useful to
+    the user, but it must never turn a completed verification into an API error.
+    """
+    try:
+        drawing = cv2.drawMatches(
+            query_image,
+            query_keypoints,
+            reference_image,
+            reference_keypoints,
+            matches,
+            None,
+            matchesMask=inlier_mask.ravel().tolist() if inlier_mask is not None else None,
+            flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
+        )
+        ok, encoded = cv2.imencode('.png', drawing)
+        if not ok:
+            return None
+        return base64.b64encode(encoded.tobytes()).decode('ascii')
+    except cv2.error:
+        return None
 
 
 @app.get('/health')
@@ -451,7 +460,7 @@ async def verify_fingerprint(
     # legitimately have no stable correspondence set, so drawing one would
     # add no value and can fail for degenerate OpenCV match geometry.
     if comparison['verdict'] == 'verified':
-        response['match_proof_base64'] = match_proof(
+        proof = match_proof(
             query_image,
             query_keypoints,
             reference_image,
@@ -459,6 +468,9 @@ async def verify_fingerprint(
             good_matches,
             inlier_mask,
         )
+        if proof:
+            response['match_proof_base64'] = proof
+
     return response
 
 
