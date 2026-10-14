@@ -3,6 +3,22 @@ import type { MicroscopicImageFrame } from '../models/microscopic-frame.js'
 
 // Render free services can need more than 30 seconds to wake after inactivity.
 const CV_REQUEST_TIMEOUT_MS = 90_000
+const CV_RATE_LIMIT_RETRIES = 2
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function retryDelayMilliseconds(response: Response, attempt: number) {
+  const retryAfterSeconds = Number(response.headers.get('retry-after'))
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) return retryAfterSeconds * 1000
+
+  // Back off briefly with jitter when Render's free-service edge temporarily
+  // rate-limits the API-to-CV request. The operation remains synchronous and
+  // bounded by the existing 90-second request timeout.
+  const exponentialDelay = 1_000 * 2 ** attempt
+  return exponentialDelay + Math.floor(Math.random() * 300)
+}
 
 export type ExtractionResult = {
   keypoint_count: number
@@ -131,21 +147,37 @@ export class CvService {
     for (const [field, file] of Object.entries(files)) {
       form.append(field, new Blob([Uint8Array.from(file.bytes)], { type: file.contentType }), file.filename)
     }
-    let response: Response
-    try {
-      response = await fetch(`${this.baseUrl}${path}`, {
-        method: 'POST',
-        headers: {
-          'X-Internal-Service-Key': env.CV_INTERNAL_SERVICE_KEY,
-          // Lets the CV-service logs distinguish the fixed-window API contract.
-          'X-GemPrint-CV-Contract': 'framed-roi-v2',
-        },
-        body: form,
-        signal: AbortSignal.timeout(CV_REQUEST_TIMEOUT_MS),
+    let response: Response | undefined
+
+    for (let attempt = 0; attempt <= CV_RATE_LIMIT_RETRIES; attempt += 1) {
+      try {
+        response = await fetch(`${this.baseUrl}${path}`, {
+          method: 'POST',
+          headers: {
+            'X-Internal-Service-Key': env.CV_INTERNAL_SERVICE_KEY,
+            // Lets the CV-service logs distinguish the fixed-window API contract.
+            'X-GemPrint-CV-Contract': 'framed-roi-v2',
+          },
+          body: form,
+          signal: AbortSignal.timeout(CV_REQUEST_TIMEOUT_MS),
+        })
+      } catch {
+        throw new Error('The fingerprint processing service is unavailable. Please try again shortly.')
+      }
+
+      if (response.status !== 429 || attempt === CV_RATE_LIMIT_RETRIES) break
+
+      const delay = retryDelayMilliseconds(response, attempt)
+      console.warn('GemPrint CV request rate limited; retrying', {
+        endpoint: path,
+        attempt: attempt + 1,
+        delayMilliseconds: delay,
       })
-    } catch {
-      throw new Error('The fingerprint processing service is unavailable. Please try again shortly.')
+      await wait(delay)
     }
+
+    if (!response) throw new Error('The fingerprint processing service is unavailable. Please try again shortly.')
+
     const responseText = await response.text()
     let body: CvErrorPayload & T = {} as CvErrorPayload & T
 
@@ -168,6 +200,10 @@ export class CvService {
         contentType: response.headers.get('content-type'),
         responsePreview: responseText.slice(0, 300),
       })
+
+      if (response.status === 429) {
+        throw new Error('Fingerprint processing is temporarily busy. Wait a moment, then retry verification.')
+      }
 
       throw new Error(message)
     }

@@ -16,10 +16,13 @@ export async function verifyReport(request: Request, response: Response) {
       : response.status(404).json({ error: 'Report not found.' })
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Verification could not be completed.'
-    if (message.includes('fingerprint processing service is unavailable')) {
+    if (
+      message.includes('fingerprint processing service is unavailable')
+      || message.includes('fingerprint processing is temporarily busy')
+    ) {
       return response
         .status(503)
-        .json({ error: 'Fingerprint processing is waking up. Wait a moment, then retry verification.' })
+        .json({ error: 'Fingerprint processing is temporarily unavailable. Wait a moment, then retry verification.' })
     }
     return response.status(400).json({ error: message })
   }
