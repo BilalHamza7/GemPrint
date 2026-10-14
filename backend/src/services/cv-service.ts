@@ -52,6 +52,7 @@ export type VerificationResult = {
 
 type CvErrorPayload = {
   detail?: unknown
+  error?: unknown
 }
 
 /**
@@ -145,8 +146,32 @@ export class CvService {
     } catch {
       throw new Error('The fingerprint processing service is unavailable. Please try again shortly.')
     }
-    const body = (await response.json().catch(() => ({}))) as CvErrorPayload & T
-    if (!response.ok) throw new Error(formatCvError(body.detail))
+    const responseText = await response.text()
+    let body: CvErrorPayload & T = {} as CvErrorPayload & T
+
+    try {
+      body = JSON.parse(responseText) as CvErrorPayload & T
+    } catch {
+      // An HTML or empty upstream response is still handled below. This can
+      // occur before FastAPI receives a request, for example at a proxy layer.
+    }
+
+    if (!response.ok) {
+      const message = formatCvError(body.detail ?? body.error)
+
+      // Do not log images, descriptors, form fields, or the service key. The
+      // status, endpoint, and content type are sufficient to diagnose whether
+      // Render/FastAPI received the internal request.
+      console.error('GemPrint CV upstream request failed', {
+        endpoint: path,
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+        responsePreview: responseText.slice(0, 300),
+      })
+
+      throw new Error(message)
+    }
+
     return body as T
   }
 }
