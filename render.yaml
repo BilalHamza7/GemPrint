@@ -18,13 +18,13 @@ services:
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: CV_SERVICE_URL
         sync: false
       - key: CV_INTERNAL_SERVICE_KEY
+        sync: false
+      - key: JWT_SECRET
         sync: false
 
   - type: web
